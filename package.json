@@ -1,0 +1,28 @@
+{
+    "name": "depop_helper",
+    "version": "1.0.0",
+    "description": "Depop helper extension to automate sending of emails and shipping labels as well as updating the the sale",
+    "homepage": "https://github.com/pasha112sergey/depop_extension#readme",
+    "bugs": {
+        "url": "https://github.com/pasha112sergey/depop_extension/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/pasha112sergey/depop_extension.git"
+    },
+    "license": "ISC",
+    "author": "",
+    "type": "commonjs",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "esbuild src/background.js --bundle --outfile=dist/background.bundle.js --platform=browser --format=esm --target=es2020"
+    },
+    "keywords": [],
+    "dependencies": {
+        "parse5": "^7.3.0"
+    },
+    "devDependencies": {
+        "esbuild": "^0.25.5"
+    }
+}

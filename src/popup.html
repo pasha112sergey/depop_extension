@@ -1,16 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Popup</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="./output.css" />
-  </head>
+<html lang="en" class="w-75">
+    <head>
+        <title>Popup</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" href="./output.css" />
+    </head>
 
-  <body class="rounded-2xl h-75 w-75 bg-slate-950 text-slate-300 p-4">
-    <h1 class="p-1.5">Hello</h1>
-    <button class="outline-amber-50 outline-2 bg-red-600 rounded-2xl p-1">
-      Click me!
-    </button>
-  </body>
+    <body
+        class="bg-[url('../images/diamond-sunset.png')] bg-cover bg-center bg-no-repeat"
+    >
+        <div class="bg-origin-padding">
+            <h1
+                class="text-2xl text-white p-5 pb-2 font-mono font-bold flex flex-row justify-center blur-none"
+            >
+                Depop Extension
+            </h1>
+        </div>
+
+        <div class="pl-4 pr-4 text-white content-stretch items-center">
+            <p
+                id="insertHere"
+                class="text-l text-white flex flex-row justify-center items-center font-mono pb-2"
+            >
+                Select usernames to ship
+            </p>
+            <table
+                class="table-auto w-full text-center rounded-xl overflow-hidden border-emerald-300"
+            >
+                <th class="p-2 pl-4 pr-4 bg-emerald-400 w-7 text-black">
+                    Select
+                </th>
+                <th class="p-2 bg-emerald-300 items-center flex flex-row pl-3">
+                    <div class="flex items-center w-full">
+                        <span class="flex-1 text-center text-black font-bold"
+                            >Username</span
+                        >
+
+                        <button id="deleteAll" class="ml-2">
+                            <img
+                                src="../images/trash.png"
+                                alt="Remove"
+                                class="w-7 h-7 hover:bg-emerald-200 hover:rounded-full p-1"
+                            />
+                        </button>
+                    </div>
+                </th>
+            </table>
+
+            <div
+                class="flex flex-row items-center justify-center m-1 mt-3 mb-3 space-x-2"
+            >
+                <button
+                    id="getUsernamesButton"
+                    class="shadow-lg px-3 py-2 items-center text-align text-[10px] whitespace-nowrap bg-emerald-400 rounded-full hover:bg-emerald-600 duration-500 ease-in-out hover:-translate-y-0.5"
+                >
+                    Get usernames
+                </button>
+                <button
+                    id="selectAll"
+                    class="shadow-lg px-3 py-2 w-[120px] items-center text-[10px] whitespace-nowrap text-align bg-blue-500 rounded-full hover:bg-blue-700 duration-500 ease-in-out hover:-translate-y-0.5"
+                >
+                    Select all
+                </button>
+                <button
+                    id="sendEmails"
+                    class="shadow-lg px-3 py-2 items-center text-align text-[10px] whitespace-nowrap flex-shrink-0 bg-rose-600 rounded-full hover:bg-rose-700 duration-500 ease-in-out hover:-translate-y-0.5"
+                >
+                    Send Selected
+                </button>
+            </div>
+        </div>
+    </body>
+    <script src="popup.js"></script>
 </html>

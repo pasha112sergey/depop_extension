@@ -1,10 +1,16 @@
 {
-  "name": "Hello Extensions",
-  "description": "Base Level Extension",
-  "version": "1.0",
-  "manifest_version": 3,
-  "action": {
-    "default_popup": "src/popup.html",
-    "default_icon": "images/depop_icon.png"
-  }
+    "name": "Hello Extensions",
+    "description": "Base Level Extension",
+    "version": "1.0",
+    "manifest_version": 3,
+    "action": {
+        "default_popup": "src/popup.html",
+        "default_icon": "images/depop_icon.png"
+    },
+    "background": {
+        "service_worker": "dist/background.bundle.js",
+        "type": "module"
+    },
+    "permissions": ["activeTab", "scripting", "downloads"],
+    "host_permissions": ["https://depop.com/sellinghub/*"]
 }
