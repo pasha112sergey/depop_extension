@@ -1,10 +1,10 @@
-let dataReceived = [];
+let dataReceived = new Set();
 let usernames = [];
-
 function saveData() {
+    const arrayToSave = Array.from(dataReceived);
     chrome.storage.local.set(
         {
-            savedReceived: dataReceived,
+            savedReceived: arrayToSave,
             savedUsernames: usernames,
         },
         () => {
@@ -20,7 +20,7 @@ function saveData() {
 function loadRows() {
     if (dataReceived.length > 0) {
         console.log("dataReceived: ", dataReceived);
-        loadTableRows(dataReceived);
+        loadTableRows(Array.from(dataReceived));
     }
 }
 
@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
             usernames = result.savedUsernames;
         }
         if (Array.isArray(result.savedReceived)) {
-            dataReceived = result.savedReceived;
+            dataReceived = new Set(result.savedReceived);
         }
 
         console.log("current usernames: ", usernames);
@@ -61,10 +61,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             console.log("response received: ", response);
-            if (response.resultsArray) {
-                dataReceived = response.resultsArray;
-                addTableRows(dataReceived);
+            if (Array.isArray(response.resultsArray)) {
+                // response.resultsArray is an array of objects { username, images }
+                // We want to merge them into our dataReceived Set (no duplicates).
+
+                response.resultsArray.forEach((item) => {
+                    // If the Set doesn’t already have an entry with the same username, add it.
+                    // However, since Set uses object identity and we want to dedupe by username,
+                    // we need to check manually:
+                    const alreadyExists = Array.from(dataReceived).some(
+                        (existing) => existing.username === item.username
+                    );
+                    if (!alreadyExists) {
+                        dataReceived.add(item);
+                    }
+                });
+
+                // Now re-render everything from the updated Set
+                addTableRows(Array.from(dataReceived));
             } else {
+                const output = document.getElementById("insertHere");
                 output.textContent = "No data received.";
             }
             console.log("Saving data....");
@@ -77,7 +93,10 @@ const tables = document.getElementsByTagName("table");
 const table = tables[0];
 let allSelected = false;
 
-async function addTableRows(response) {
+async function addTableRows(responseIterable) {
+    const response = Array.isArray(responseIterable)
+        ? responseIterable
+        : Array.from(responseIterable);
     if (response.length === 0) return;
     for (resp of response) {
         console.log("resp looks like: ", resp);
@@ -183,7 +202,9 @@ async function createRows(resp) {
 
         const index = usernames.indexOf(username);
         if (index > -1) {
-            dataReceived.splice(index, 1);
+            dataReceived = dataReceived.filter((resp) =>
+                resp.username == username ? false : true
+            );
             usernames.splice(index, 1);
             console.log(`removed ${username} from array`, usernames);
         }
@@ -194,7 +215,7 @@ async function createRows(resp) {
 }
 
 async function loadTableRows(response) {
-    if (response.length === 0) return;
+    if (response.size === 0) return;
     for (resp of response) {
         console.log("resp looks like: ", resp);
         createRows(resp);
@@ -213,19 +234,24 @@ selectAllBtn.addEventListener("click", () => {
 const delAll = document.getElementById("deleteAll");
 delAll.addEventListener("click", () => {
     const checkboxes = document.querySelectorAll('input[type="checkbox"');
-    for (box of checkboxes) {
-        if (box.checked) {
-            const row = box.closest("tr");
-            const usernameCell = row.querySelector(".usernameCell");
-            const username = usernameCell.textContent.trim();
+    if (allSelected) {
+        usernames = [];
+        dataReceived = new Set();
+    } else {
+        for (box of checkboxes) {
+            if (box.checked) {
+                const row = box.closest("tr");
+                const usernameCell = row.querySelector(".usernameCell");
+                const username = usernameCell.textContent.trim();
 
-            const index = usernames.indexOf(username);
-            if (index > -1) {
-                dataReceived.splice(index, 1);
-                usernames.splice(index, 1);
-                console.log(`removed ${username} from array`, username);
+                const index = usernames.indexOf(username);
+                if (index > -1) {
+                    dataReceived.splice(index, 1);
+                    usernames.splice(index, 1);
+                    console.log(`removed ${username} from array`, username);
+                }
+                row.remove();
             }
-            row.remove();
         }
     }
     saveData();
