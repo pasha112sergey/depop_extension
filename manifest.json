@@ -11,6 +11,6 @@
         "service_worker": "dist/background.bundle.js",
         "type": "module"
     },
-    "permissions": ["activeTab", "scripting", "downloads"],
+    "permissions": ["activeTab", "scripting", "downloads", "storage"],
     "host_permissions": ["https://depop.com/sellinghub/*"]
 }

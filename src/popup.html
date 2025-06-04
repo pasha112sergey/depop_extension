@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="w-75">
+<html lang="en" class="w-[500px] h-[600px]">
     <head>
         <title>Popup</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +8,7 @@
     </head>
 
     <body
-        class="bg-[url('../images/diamond-sunset.png')] bg-cover bg-center bg-no-repeat"
+        class="bg-[url('../images/diamond-sunset.png')] bg-cover bg-center bg-no-repeat h-[600px]"
     >
         <div
             class="bg-origin-padding flex flex-row justify-center items-center align-middle p-5 pb-2 gap-5"
@@ -34,96 +34,135 @@
                 Select usernames to ship
             </p>
             <table
-                class="table-auto w-full text-center rounded-xl overflow-visible border-emerald-300"
+                class="table-auto w-full text-center rounded-xl border-emerald-300"
             >
-                <th class="p-2 pl-4 pr-4 bg-emerald-400 w-7 text-black">
-                    Select
-                </th>
-                <th class="p-2 bg-emerald-300 items-center flex flex-row pl-3">
-                    <div class="flex items-center w-full">
-                        <span class="flex-1 text-center text-black font-bold"
-                            >Username</span
+                <tr>
+                    <th class="p-2 pl-4 pr-4 bg-emerald-400 w-7 text-black">
+                        Select
+                    </th>
+                    <th class="bg-emerald-300">
+                        <div
+                            class="items-center flex flex-row pl-3 w-full h-full"
                         >
-
-                        <button id="deleteAll" class="ml-2">
-                            <img
-                                src="../images/trash.png"
-                                alt="Remove"
-                                class="w-7 h-7 hover:bg-emerald-200 hover:rounded-full p-1"
-                            />
-                        </button>
-                    </div>
-                </th>
-                <tr class="text-black group">
-                    <td
-                        class="p-2 pt-2.5 bg-emerald-400 text-center group-hover:bg-emerald-300"
-                    >
-                        <label>
-                            <input
-                                class="block cursor-pointer w-full"
-                                type="checkbox"
-                            />
-                        </label>
-                    </td>
-                    <td class="p-2 bg-emerald-300 group-hover:bg-emerald-200">
-                        <div class="flex items-center w-full">
                             <span
-                                class="usernameCell flex-1 text-center font-bold"
-                                >Test</span
+                                class="flex-1 text-center text-black font-bold"
+                                >Username</span
                             >
-                            <button class="deleteItem ml-2">
+                        </div>
+                    </th>
+                    <th class="p-2 bg-emerald-300">
+                        <div class="items-center flex flex-row pl-3 w-full">
+                            <span
+                                class="flex-1 text-center text-black font-bold"
+                                >Set Sizes</span
+                            >
+
+                            <button id="deleteAll" class="ml-2">
                                 <img
                                     src="../images/trash.png"
                                     alt="Remove"
-                                    class="w-7 h-7 hover:bg-emerald-100 hover:rounded-full p-1"
+                                    class="w-7 h-7 hover:bg-emerald-200 hover:rounded-full p-1"
                                 />
                             </button>
                         </div>
-                    </td>
-                    <td class="p-2 relative">
-                        <details class="relative">
-                            <!-- The summary that the user clicks -->
-                            <summary
-                                class="cursor-pointer select-none text-blue-600 hover:text-blue-800"
-                            >
-                                View Orders ▼
-                            </summary>
-
-                            <!-- The expanded panel—it must be absolutely positioned relative to <details> -->
-                            <div
-                                class="absolute left-0 mt-1 w-48 bg-white text-black border border-gray-300 rounded shadow-md p-2 z-10"
-                            >
-                                <!-- Sample images (just placeholders) -->
-                                <div class="flex flex-wrap gap-2 mb-2">
-                                    <img
-                                        src="../images/depop_icon.png"
-                                        alt="order1"
-                                        class="w-16 h-16 object-cover rounded border"
-                                    />
-                                    <img
-                                        src="../images/depop_icon.png"
-                                        alt="order2"
-                                        class="w-16 h-16 object-cover rounded border"
-                                    />
-                                </div>
-
-                                <!-- A size input field -->
-                                <div class="border-t pt-2">
-                                    <label
-                                        class="block text-xs text-gray-600 mb-1"
-                                    >
-                                        Enter size:
-                                    </label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. M, 9.5"
-                                        class="w-full px-2 py-1 border rounded text-sm"
-                                    />
-                                </div>
-                            </div>
-                        </details>
-                    </td>
+                    </th>
+                    <tbody id="dataBody"></tbody>
                 </tr>
+                <!-- <tr class="text-black group">
+                        <td
+                            class="p-2 pt-2.5 bg-emerald-400 text-center group-hover:bg-emerald-300"
+                        >
+                            <label>
+                                <input
+                                    class="block cursor-pointer w-full"
+                                    type="checkbox"
+                                />
+                            </label>
+                        </td>
+                        <td
+                            class="p-2 bg-emerald-300 group-hover:bg-emerald-200"
+                        >
+                            <div class="flex items-center w-full">
+                                <span
+                                    class="usernameCell flex-1 text-center font-bold"
+                                    >@lilyofthevalleyyyyyyyy</span
+                                >
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr class="text-black group">
+                        <td
+                            class="p-2 pt-2.5 bg-emerald-400 text-center group-hover:bg-emerald-300"
+                        >
+                            <label>
+                                <input
+                                    class="block cursor-pointer w-full"
+                                    type="checkbox"
+                                />
+                            </label>
+                        </td>
+                        <td
+                            class="p-2 bg-emerald-300 group-hover:bg-emerald-200"
+                        >
+                            <div class="flex items-center w-full">
+                                <span
+                                    class="usernameCell flex-1 text-center font-bold"
+                                    >${resp.username}</span
+                                >
+                            </div>
+                        </td>
+                        <td
+                            class="p-2 relative text-center bg-emerald-300 group-hover:bg-emerald-200 content-stretch"
+                        >
+                            <details class="relative">
+                                <!-- The summary that the user clicks -->
+                <!-- <summary
+                                    class="relative cursor-pointer select-none text-black font-bold w-full"
+                                >
+                                    View Orders
+
+                                    <button
+                                        class="deleteItem absolute right-0 top-1/2 -translate-y-1/2"
+                                    >
+                                        <img
+                                            src="../images/trash.png"
+                                            alt="Remove"
+                                            class="w-7 h-7 hover:bg-emerald-100 hover:rounded-full p-1"
+                                        />
+                                    </button>
+                                </summary>
+                                <div
+                                    class="absolute -left-[100px] mt-1 w-auto overflow-scroll h-max-[75px] flex flex-col bg-white text-black font-bold border-gray-300 rounded-xl shadow-md p-2 z-10"
+                                >
+                                    <!-- Sample images (just placeholders) -->
+                <!-- <div class="mb-2">
+                                        <div
+                                            class="pt-2 flex flex-row gap-2 items-center"
+                                        >
+                                            <img
+                                                src="../images/depop_icon.png"
+                                                alt="order1"
+                                                class="object-cover rounded-full h-15 w-15"
+                                            />
+                                            <label
+                                                class="block text-[10px] text-black mb-1"
+                                            >
+                                                Enter size:
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="28-46"
+                                                class="w-[200px] h-7 px-2 py-1 border rounded-full text-[10px]"
+                                            />
+                                        </div>
+                                    </div> -->
+
+                <!-- A size input field -->
+                <!-- </div>
+                            </details>
+                        </td>
+                    </tr> -->
             </table>
 
             <div
