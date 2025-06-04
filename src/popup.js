@@ -18,7 +18,7 @@ function saveData() {
 }
 
 function loadRows() {
-    if (dataReceived.length > 0) {
+    if (dataReceived.size > 0) {
         console.log("dataReceived: ", dataReceived);
         loadTableRows(Array.from(dataReceived));
     }
@@ -237,21 +237,20 @@ delAll.addEventListener("click", () => {
     if (allSelected) {
         usernames = [];
         dataReceived = new Set();
-    } else {
-        for (box of checkboxes) {
-            if (box.checked) {
-                const row = box.closest("tr");
-                const usernameCell = row.querySelector(".usernameCell");
-                const username = usernameCell.textContent.trim();
+    }
+    for (box of checkboxes) {
+        if (box.checked) {
+            const row = box.closest("tr");
+            const usernameCell = row.querySelector(".usernameCell");
+            const username = usernameCell.textContent.trim();
 
-                const index = usernames.indexOf(username);
-                if (index > -1) {
-                    dataReceived.splice(index, 1);
-                    usernames.splice(index, 1);
-                    console.log(`removed ${username} from array`, username);
-                }
-                row.remove();
+            const index = usernames.indexOf(username);
+            if (index > -1) {
+                dataReceived.delete(username);
+                usernames.splice(index, 1);
+                console.log(`removed ${username} from array`, username);
             }
+            row.remove();
         }
     }
     saveData();
