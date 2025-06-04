@@ -1,29 +1,28 @@
-// chrome.runtime.onMessage.addListener(
-//     (message, sender, sender, sendResponse) => {
-//         if (message.type === "data-update") {
-//             const { totals, usernames } = message.payload;
-//             document.querySelector("p").textContent = usernames.join(", ");
-//         }
-//     }
-// );
 let usernames = [];
 let receipts = [];
 document.addEventListener("DOMContentLoaded", () => {
     const getUsernamesButton = document.getElementById("getUsernamesButton");
-    const output = document.getElementById("insertHere");
-
+    const spinner = document.getElementById("loading");
+    const getOrdersText = document.getElementById("getOrdersText");
     console.log(getUsernamesButton);
 
     getUsernamesButton.addEventListener("click", () => {
         console.log("clicked!");
+        spinner.classList.remove("hidden");
+        getOrdersText.textContent = "Working";
+        getUsernamesButton.disabled = true;
         chrome.runtime.sendMessage({ type: "get-data" }, (response) => {
+            spinner.classList.add("hidden");
+            getOrdersText.textContent = "Get orders";
+            getUsernamesButton.disabled = false;
+
             if (chrome.runtime.lastError) {
                 console.error(chrome.runtime.lastError);
                 return;
             }
-            console.log(response);
-            if (response && response.usernames) {
-                addTableRows(response.usernames);
+            console.log("response received: ", response);
+            if (response.resultsArray) {
+                addTableRows(response.resultsArray);
             } else {
                 output.textContent = "No data received.";
             }
@@ -34,14 +33,16 @@ document.addEventListener("DOMContentLoaded", () => {
 const tables = document.getElementsByTagName("table");
 const table = tables[0];
 let allSelected = false;
-function addTableRows(users) {
-    let i = 0;
-    for (user of users) {
-        if (usernames.includes(user)) continue;
-        usernames.push(user);
-        // receipts.push(receipts[i++]);
+async function addTableRows(response) {
+    for (resp of response) {
+        if (usernames.includes(resp.username)) continue;
+
+        usernames.push(resp.username);
+
         const tbody = document.querySelector("table");
         const wrapper = document.createElement("tbody");
+
+        console.log("creating the entry", resp.username);
 
         wrapper.innerHTML = `
         <tr class="text-black group">
@@ -53,9 +54,8 @@ function addTableRows(users) {
             <td class="p-2 bg-emerald-300 group-hover:bg-emerald-200">
                 <div class="flex items-center w-full">
                     <span class="usernameCell flex-1 text-center font-bold"
-                        >${user}</span
+                        >${resp.username}</span
                     >
-
                     <button class="deleteItem ml-2">
                         <img
                             src="../images/trash.png"
@@ -92,6 +92,7 @@ function addTableRows(users) {
             row.remove();
         });
         console.log(usernames);
+        await new Promise((resolve) => setTimeout(resolve, 100));
     }
 }
 
@@ -124,21 +125,4 @@ delAll.addEventListener("click", () => {
         allSelected = false;
         selectAllBtn.textContent = "Select all";
     }
-});
-
-const sendEmails = document.querySelector("#sendEmails");
-sendEmails.addEventListener("click", () => {
-    chrome.runtime.sendMessage(
-        {
-            type: "send-emails",
-            payload: [0, 1],
-        },
-        (response) => {
-            if (chrome.runtime.lastError) {
-                console.error(chrome.runtime.lastError);
-                return;
-            }
-            console.log("popup received: ", response);
-        }
-    );
 });

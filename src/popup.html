@@ -10,12 +10,20 @@
     <body
         class="bg-[url('../images/diamond-sunset.png')] bg-cover bg-center bg-no-repeat"
     >
-        <div class="bg-origin-padding">
+        <div
+            class="bg-origin-padding flex flex-row justify-center items-center align-middle p-5 pb-2 gap-5"
+        >
             <h1
-                class="text-2xl text-white p-5 pb-2 font-mono font-bold flex flex-row justify-center blur-none"
+                class="text-xl text-white font-mono font-bold items-stretchjustify-center blur-none"
             >
                 Depop Extension
             </h1>
+            <button
+                id="logIn"
+                class="aligm-middle shadow-lg px-3 py-2 text-white items-center text-[10px] whitespace-nowrap text-align bg-orange-500 rounded-full hover:bg-orange-700 duration-500 ease-in-out hover:-translate-y-0.5"
+            >
+                Log in
+            </button>
         </div>
 
         <div class="pl-4 pr-4 text-white content-stretch items-center">
@@ -26,7 +34,7 @@
                 Select usernames to ship
             </p>
             <table
-                class="table-auto w-full text-center rounded-xl overflow-hidden border-emerald-300"
+                class="table-auto w-full text-center rounded-xl overflow-visible border-emerald-300"
             >
                 <th class="p-2 pl-4 pr-4 bg-emerald-400 w-7 text-black">
                     Select
@@ -46,6 +54,76 @@
                         </button>
                     </div>
                 </th>
+                <tr class="text-black group">
+                    <td
+                        class="p-2 pt-2.5 bg-emerald-400 text-center group-hover:bg-emerald-300"
+                    >
+                        <label>
+                            <input
+                                class="block cursor-pointer w-full"
+                                type="checkbox"
+                            />
+                        </label>
+                    </td>
+                    <td class="p-2 bg-emerald-300 group-hover:bg-emerald-200">
+                        <div class="flex items-center w-full">
+                            <span
+                                class="usernameCell flex-1 text-center font-bold"
+                                >Test</span
+                            >
+                            <button class="deleteItem ml-2">
+                                <img
+                                    src="../images/trash.png"
+                                    alt="Remove"
+                                    class="w-7 h-7 hover:bg-emerald-100 hover:rounded-full p-1"
+                                />
+                            </button>
+                        </div>
+                    </td>
+                    <td class="p-2 relative">
+                        <details class="relative">
+                            <!-- The summary that the user clicks -->
+                            <summary
+                                class="cursor-pointer select-none text-blue-600 hover:text-blue-800"
+                            >
+                                View Orders ▼
+                            </summary>
+
+                            <!-- The expanded panel—it must be absolutely positioned relative to <details> -->
+                            <div
+                                class="absolute left-0 mt-1 w-48 bg-white text-black border border-gray-300 rounded shadow-md p-2 z-10"
+                            >
+                                <!-- Sample images (just placeholders) -->
+                                <div class="flex flex-wrap gap-2 mb-2">
+                                    <img
+                                        src="../images/depop_icon.png"
+                                        alt="order1"
+                                        class="w-16 h-16 object-cover rounded border"
+                                    />
+                                    <img
+                                        src="../images/depop_icon.png"
+                                        alt="order2"
+                                        class="w-16 h-16 object-cover rounded border"
+                                    />
+                                </div>
+
+                                <!-- A size input field -->
+                                <div class="border-t pt-2">
+                                    <label
+                                        class="block text-xs text-gray-600 mb-1"
+                                    >
+                                        Enter size:
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. M, 9.5"
+                                        class="w-full px-2 py-1 border rounded text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </details>
+                    </td>
+                </tr>
             </table>
 
             <div
@@ -53,9 +131,13 @@
             >
                 <button
                     id="getUsernamesButton"
+                    type="button"
                     class="shadow-lg px-3 py-2 items-center text-align text-[10px] whitespace-nowrap bg-emerald-400 rounded-full hover:bg-emerald-600 duration-500 ease-in-out hover:-translate-y-0.5"
                 >
-                    Get usernames
+                    <div class="inline-flex items-center">
+                        <span id="getOrdersText">Get Orders</span>
+                        <div id="loading" class="hidden loader ml-2"></div>
+                    </div>
                 </button>
                 <button
                     id="selectAll"

@@ -159,6 +159,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     resultsArray.push({ link, error: innerErr.message });
                 }
             }
+            console.log("results array to send: ", resultsArray);
+            navigateToUrl(tabId, "https://depop.com/sellinghub/sold-items");
+            sendResponse({ resultsArray: resultsArray });
         })();
 
         // Tell Chrome we’ll call sendResponse asynchronously

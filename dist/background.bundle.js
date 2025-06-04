@@ -8107,6 +8107,9 @@ var require_background = __commonJS({
               resultsArray.push({ link, error: innerErr.message });
             }
           }
+          console.log("results array to send: ", resultsArray);
+          navigateToUrl(tabId, "https://depop.com/sellinghub/sold-items");
+          sendResponse({ resultsArray });
         })();
         return true;
       }
