@@ -1,9 +1,34 @@
 import * as parse5 from "parse5";
 
 console.log("parse5.parse is", typeof parse5.parse);
-// background.js (Manifest V3 service worker)
+let visitedUrls = [];
 
+async function waitForSelector(tabId, selector, timeoutMs = 10000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+        // Ask the page if document.querySelector(selector) is non‐null
+        const [response] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: (sel) => {
+                return document.querySelector(sel) !== null;
+            },
+            args: [selector],
+        });
+        if (response.result) {
+            return true;
+        }
+        // If not found yet, wait 100 ms and try again
+        await new Promise((r) => setTimeout(r, 25));
+    }
+    return false;
+}
+
+// background.js (Manifest V3 service worker)
 function navigateToUrl(tabId, url, timeoutMs = 15000) {
+    if (visitedUrls.includes(url)) {
+        return Promise.resolve();
+    }
+    visitedUrls.push(url);
     return new Promise((resolve, reject) => {
         let timeoutHandle = null;
 
@@ -12,6 +37,13 @@ function navigateToUrl(tabId, url, timeoutMs = 15000) {
             if (changeInfo.status === "complete") {
                 chrome.tabs.onUpdated.removeListener(onUpdatedListener);
                 clearTimeout(timeoutHandle);
+                chrome.scripting.executeScript({
+                    target: { tabId },
+                    func: () => {
+                        const body = document.getElementsByTagName("body")[0];
+                        body.classList.remove("blur-l");
+                    },
+                });
                 resolve();
             }
         }
@@ -21,11 +53,32 @@ function navigateToUrl(tabId, url, timeoutMs = 15000) {
         chrome.tabs.update(tabId, { url }).catch((error) => {
             chrome.tabs.onUpdated.removeListener(onUpdatedListener);
             clearTimeout(timeoutHandle);
+            chrome.scripting.executeScript({
+                target: { tabId },
+                func: () => {
+                    const body = document.getElementsByTagName("body")[0];
+                    body.classList.remove("blur-xl");
+                },
+            });
+            chrome.scripting.executeScript({
+                target: { tabId },
+                func: () => {
+                    const body = document.getElementsByTagName("body")[0];
+                    body.classList.remove("blur-xl");
+                },
+            });
             reject(new Error("tabs.update failed, ", error.message));
         });
 
         timeoutHandle = setTimeout(() => {
             chrome.tabs.onUpdated.removeListener(onUpdatedListener);
+            chrome.scripting.executeScript({
+                target: { tabId },
+                func: () => {
+                    const body = document.getElementsByTagName("body")[0];
+                    body.classList.remove("blur-xl");
+                },
+            });
             reject(new Error("navigateToUrl timed out"));
         }, timeoutMs);
     });
@@ -76,6 +129,7 @@ chrome.action.onClicked.addListener((tab) => {
 
 // 2) Listen for messages from popup.js
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log(visitedUrls);
     if (message.type === "get-data") {
         (async () => {
             const [tab] = await chrome.tabs.query({
@@ -139,21 +193,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             for (const link of receiptLinks) {
                 try {
                     await navigateToUrl(tabId, link);
-                    await new Promise((resolve) => setTimeout(resolve, 1500));
+                    // await new Promise((resolve) => setTimeout(resolve, 650));
+                    const foundImage = await waitForSelector(
+                        tabId,
+                        "img.styles_image__nuVfa",
+                        10000
+                    );
+                    if (!foundImage) {
+                        resultsArray.push({ link, error: "never loaded" });
+                        continue;
+                    }
                     const scrapeResult = await scrapeDataFromDom(tabId);
                     if (scrapeResult.error) {
                         resultsArray.push({ link, error: scrapeResult.error });
                     } else {
-                        console.log("raw scrape result: ", scrapeResult);
-                        for (const entry of scrapeResult.images) {
-                            console.log(
-                                `IMAGE(S) FOUND FOR USER ${scrapeResult.username}:---------> ${entry}`
-                            );
-                            resultsArray.push({
-                                username: scrapeResult.username,
-                                images: scrapeResult.images,
-                            });
-                        }
+                        // console.log("raw scrape result: ", scrapeResult);
+                        console.log(
+                            `IMAGE(S) FOUND FOR USER ${scrapeResult.username}:---------> ${scrapeResult.images}`
+                        );
+                        resultsArray.push({
+                            username: scrapeResult.username,
+                            images: scrapeResult.images,
+                            link: link,
+                        });
                     }
                 } catch (innerErr) {
                     resultsArray.push({ link, error: innerErr.message });
@@ -165,6 +227,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })();
 
         // Tell Chrome we’ll call sendResponse asynchronously
-        return true;
     }
+    if (message.type === "clear") {
+        const idx = visitedUrls.indexOf(message.link);
+        if (idx !== -1) {
+            visitedUrls.splice(idx, 1);
+            console.log(
+                "Removed from visitedUrls",
+                message.link,
+                "->",
+                visitedUrls
+            );
+        }
+        console.log(visitedUrls);
+        sendResponse({ success: true });
+    } else {
+    }
+    return true;
 });

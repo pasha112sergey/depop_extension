@@ -12,5 +12,11 @@
         "type": "module"
     },
     "permissions": ["activeTab", "scripting", "downloads", "storage"],
-    "host_permissions": ["https://depop.com/sellinghub/*"]
+    "host_permissions": ["https://depop.com/sellinghub/*"],
+    "content_scripts": [
+        {
+            "matches": ["*://*.depop.com/*"],
+            "js": ["src/blur-content.js"]
+        }
+    ]
 }

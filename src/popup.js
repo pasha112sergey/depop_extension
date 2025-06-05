@@ -1,26 +1,34 @@
 let dataReceived = new Set();
-let usernames = [];
+let links = [];
+let totalOrderInfo = {};
+let working = false;
 function saveData() {
     const arrayToSave = Array.from(dataReceived);
     chrome.storage.local.set(
         {
             savedReceived: arrayToSave,
-            savedUsernames: usernames,
+            savedUsernames: links,
         },
         () => {
             console.log(
                 "Saved data/usernames to storage: ",
                 dataReceived,
-                usernames
+                links
             );
         }
     );
 }
 
+function clearTableBodies() {
+    const table = document.querySelector("table");
+    table.querySelectorAll("tbody").forEach((tb) => tb.remove());
+}
+
 function loadRows() {
     if (dataReceived.size > 0) {
         console.log("dataReceived: ", dataReceived);
-        loadTableRows(Array.from(dataReceived));
+        clearTableBodies();
+        addTableRows(Array.from(dataReceived));
     }
 }
 
@@ -30,13 +38,13 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("saved received: ", result.savedReceived);
 
         if (Array.isArray(result.savedUsernames)) {
-            usernames = result.savedUsernames;
+            links = result.savedUsernames;
         }
         if (Array.isArray(result.savedReceived)) {
             dataReceived = new Set(result.savedReceived);
         }
 
-        console.log("current usernames: ", usernames);
+        console.log("current usernames: ", links);
         console.log("current dataReceived: ", dataReceived);
         loadRows();
     });
@@ -87,6 +95,66 @@ document.addEventListener("DOMContentLoaded", () => {
             saveData();
         });
     });
+
+    const delSelected = document.getElementById("deleteAll");
+    console.log(delSelected);
+    delSelected.addEventListener("click", () => {
+        console.log("clicked");
+        const boxes = document.querySelectorAll('input[type="checkbox"]');
+        console.log("boxes: ", boxes);
+        for (box of boxes) {
+            if (box.checked) {
+                const row = box.closest("tbody");
+                console.log(row);
+                const linkToClear = row.dataset.link;
+                console.log(linkToClear, "<--- link to clear");
+                if (linkToClear) {
+                    chrome.runtime.sendMessage(
+                        {
+                            type: "clear",
+                            link: linkToClear,
+                        },
+                        (response) => {
+                            if (chrome.runtime.lastError) {
+                                console.error(
+                                    "Error clearing link:",
+                                    chrome.runtime.lastError
+                                );
+                            } else {
+                                console.log(
+                                    "Background acknowledged clear:",
+                                    linkToClear
+                                );
+                            }
+                        }
+                    );
+
+                    let objectToRemove = null;
+                    for (obj of dataReceived) {
+                        if (obj.link == linkToClear) {
+                            objectToRemove = obj;
+                            break;
+                        }
+                    }
+                    if (objectToRemove) {
+                        dataReceived.delete(objectToRemove);
+                    }
+                    const username = objectToRemove?.username;
+                    if (username) {
+                        const idx = links.indexOf(username);
+                        if (idx > -1) links.splice(idx, 1);
+                    }
+
+                    // 5) Remove the row’s <tbody> from the DOM
+                    row.remove();
+                    console.log("hello!");
+                    console.log(dataReceived);
+                    console.log(links);
+                    saveData();
+                }
+            }
+        }
+    });
 });
 
 const tables = document.getElementsByTagName("table");
@@ -98,164 +166,135 @@ async function addTableRows(responseIterable) {
         ? responseIterable
         : Array.from(responseIterable);
     if (response.length === 0) return;
+    clearTableBodies();
     for (resp of response) {
+        if (!resp.username) continue;
         console.log("resp looks like: ", resp);
-        if (usernames.includes(resp.username)) continue;
-        usernames.push(resp.username);
         createRows(resp);
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 }
 
 async function createRows(resp) {
-    const tbody = document.querySelector("table");
+    const table = document.querySelector("table");
+    // Create a <tbody> wrapper for this one row
     const wrapper = document.createElement("tbody");
+    // Attach the receipt URL so we can reference it later
+    wrapper.dataset.link = resp.link;
 
-    console.log("creating the entry", resp.username);
-
+    // Build the row’s HTML
     wrapper.innerHTML = `
-            <tr class="text-black group">
-                <td
-                    class="p-2 pt-2.5 bg-emerald-400 text-center group-hover:bg-emerald-300"
-                >
-                    <label>
-                        <input class="block cursor-pointer w-full" type="checkbox" />
-                    </label>
-                </td>
-                <td class="p-2 bg-emerald-300 group-hover:bg-emerald-200">
-                    <div class="flex items-center w-full">
-                        <span class="usernameCell flex-1 text-center font-bold"
-                            >${resp.username}</span
-                        >
-                    </div>
-                </td>
-                <td
-                    class="p-2 relative text-center bg-emerald-300 group-hover:bg-emerald-200 content-stretch"
-                >
-                    <details class="relative">
-                        <!-- The summary that the user clicks -->
-                        <summary
-                            class="relative cursor-pointer select-none text-black font-bold w-full"
-                        >
-                            View Orders
-
-                            <button
-                                class="deleteItem absolute right-0 top-1/2 -translate-y-1/2"
-                            >
-                                <img
-                                    src="../images/trash.png"
-                                    alt="Remove"
-                                    class="w-7 h-7 hover:bg-emerald-100 hover:rounded-full p-1"
-                                />
-                            </button>
-                        </summary>
-                        <div
-                        id="images-${resp.username.slice(1)}"
-                            class="absolute -left-[100px] mt-1 w-auto overflow-scroll h-max-[75px] flex flex-col bg-white text-black font-bold border-gray-300 rounded-xl shadow-md p-2 z-10"
-                        >
-                        </div>
-                    </details>
-                </td>
-            </tr>   
+          <tr class="text-black group">
+            <td class="p-2 pt-2.5 bg-emerald-400 text-center group-hover:bg-emerald-300">
+              <label><input class="block cursor-pointer w-full" type="checkbox"/></label>
+            </td>
+            <td class="p-2 bg-emerald-300 group-hover:bg-emerald-200">
+              <div class="flex items-center w-full">
+                <span class="usernameCell flex-1 text-center font-bold">${
+                    resp.username
+                }</span>
+              </div>
+            </td>
+            <td class="p-2 relative text-center bg-emerald-300 group-hover:bg-emerald-200 content-stretch">
+              <details class="relative">
+                <summary class="relative cursor-pointer select-none text-black font-bold w-full">
+                  View Orders
+                  <button class="deleteItem absolute right-0 top-1/2 -translate-y-1/2">
+                    <img src="../images/trash.png" alt="Remove"
+                         class="w-7 h-7 hover:bg-emerald-100 hover:rounded-full p-1"/>
+                  </button>
+                </summary>
+                <div id="images-${resp.username.slice(1)}"
+                     class="absolute -left-[100px] mt-1 w-auto overflow-scroll h-max-[75px]
+                            flex flex-col bg-white text-black font-bold
+                            border-gray-300 rounded-xl shadow-md p-2 z-10"></div>
+              </details>
+            </td>
+          </tr>
         `;
 
+    // Append that <tbody> (with its <tr>) into the table
+    table.appendChild(wrapper);
+
+    // Fill in the “images” part under View Orders
     const newRow = wrapper.querySelector("tr");
-    tbody.appendChild(newRow);
     for (let order of resp.images) {
-        const orders = newRow.querySelector(
+        const ordersContainer = newRow.querySelector(
             `#images-${resp.username.slice(1)}`
         );
-        console.log(orders);
         const sizeField = document.createElement("div");
         sizeField.classList.add("mb-2");
-        console.log("order im inserting into src is: ", order);
         sizeField.innerHTML = `
-                            <!-- Sample images (just placeholders) -->
-                    <div class="pt-2 flex flex-row gap-2 items-center">
-                        <img
-                            src="${order}"
-                            alt="order1"
-                            class="object-cover rounded-full h-15 w-15"
-                        />
-                        <label class="block text-[10px] text-black mb-1">
-                            Enter size:
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="28-46"
-                            class="w-[200px] h-7 px-2 py-1 border rounded-full text-[10px]"
-                        />
-                    </div>
-            `;
-        orders.appendChild(sizeField);
+            <div class="pt-2 flex flex-row gap-2 items-center">
+              <img src="${order}" alt="order1" class="object-cover rounded-full h-15 w-15"/>
+              <label class="block text-[10px] text-black mb-1">Enter size:</label>
+              <input type="text" placeholder="28-46"
+                     class="w-[200px] h-7 px-2 py-1 border rounded-full text-[10px]"/>
+            </div>
+          `;
+        ordersContainer.appendChild(sizeField);
     }
-    const del = newRow.querySelector(".deleteItem");
-    del.addEventListener("click", (event) => {
-        const button = event.currentTarget;
-        const row = button.closest("tr");
-        if (!row) return;
 
-        const usernameCell = row.querySelector(".usernameCell");
-        if (!usernameCell) return;
-
-        const username = usernameCell.textContent.trim();
-
-        const index = usernames.indexOf(username);
-        if (index > -1) {
-            dataReceived = dataReceived.filter((resp) =>
-                resp.username == username ? false : true
+    // Single-row delete button: remove only this row, send its link to background
+    const delBtn = newRow.querySelector(".deleteItem");
+    delBtn.addEventListener("click", () => {
+        console.log("Clicked delete");
+        const wrapperRow = delBtn.closest("tbody");
+        const linkToClear = wrapperRow.dataset.link;
+        console.log("linkToClear on line 282", linkToClear);
+        if (linkToClear) {
+            // 2) Tell background to un-visit it
+            chrome.runtime.sendMessage(
+                { type: "clear", link: linkToClear },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error(
+                            "Error clearing link:",
+                            chrome.runtime.lastError
+                        );
+                    } else {
+                        console.log(
+                            "Background acknowledged clear:",
+                            linkToClear
+                        );
+                    }
+                }
             );
-            usernames.splice(index, 1);
-            console.log(`removed ${username} from array`, usernames);
         }
-        row.remove();
+
+        // 3) Remove from dataReceived: find the object whose .link matches
+        let objectToRemove = null;
+        for (let obj of dataReceived) {
+            if (obj.link === linkToClear) {
+                objectToRemove = obj;
+                break;
+            }
+        }
+        if (objectToRemove) {
+            dataReceived.delete(objectToRemove);
+        }
+
+        // 4) Remove from links array: find that object’s username
+        const username = objectToRemove?.username;
+        if (username) {
+            const idx = links.indexOf(username);
+            if (idx > -1) links.splice(idx, 1);
+        }
+
+        // 5) Remove the row’s <tbody> from the DOM
+        wrapperRow.remove();
+        console.log("hello!");
+        console.log(dataReceived);
+        console.log(links);
+        saveData();
     });
+
     saveData();
-    console.log(usernames);
 }
-
-async function loadTableRows(response) {
-    if (response.size === 0) return;
-    for (resp of response) {
-        console.log("resp looks like: ", resp);
-        createRows(resp);
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-}
-
 const selectAllBtn = document.getElementById("selectAll");
 selectAllBtn.addEventListener("click", () => {
     const checkboxes = table.querySelectorAll('input[type="checkbox"');
     allSelected = !allSelected;
     checkboxes.forEach((cb) => (cb.checked = allSelected));
     selectAllBtn.textContent = allSelected ? "Deselect all" : "Select all";
-});
-
-const delAll = document.getElementById("deleteAll");
-delAll.addEventListener("click", () => {
-    const checkboxes = document.querySelectorAll('input[type="checkbox"');
-    if (allSelected) {
-        usernames = [];
-        dataReceived = new Set();
-    }
-    for (box of checkboxes) {
-        if (box.checked) {
-            const row = box.closest("tr");
-            const usernameCell = row.querySelector(".usernameCell");
-            const username = usernameCell.textContent.trim();
-
-            const index = usernames.indexOf(username);
-            if (index > -1) {
-                dataReceived.delete(username);
-                usernames.splice(index, 1);
-                console.log(`removed ${username} from array`, username);
-            }
-            row.remove();
-        }
-    }
-    saveData();
-    if (usernames.length === 0) {
-        allSelected = false;
-        selectAllBtn.textContent = "Select all";
-    }
 });
