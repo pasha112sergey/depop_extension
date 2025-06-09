@@ -8010,13 +8010,6 @@ var require_background = __commonJS({
           if (changeInfo.status === "complete") {
             chrome.tabs.onUpdated.removeListener(onUpdatedListener);
             clearTimeout(timeoutHandle);
-            chrome.scripting.executeScript({
-              target: { tabId },
-              func: () => {
-                const body = document.getElementsByTagName("body")[0];
-                body.classList.remove("blur-l");
-              }
-            });
             resolve();
           }
         }
@@ -8024,20 +8017,6 @@ var require_background = __commonJS({
         chrome.tabs.update(tabId, { url }).catch((error) => {
           chrome.tabs.onUpdated.removeListener(onUpdatedListener);
           clearTimeout(timeoutHandle);
-          chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => {
-              const body = document.getElementsByTagName("body")[0];
-              body.classList.remove("blur-xl");
-            }
-          });
-          chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => {
-              const body = document.getElementsByTagName("body")[0];
-              body.classList.remove("blur-xl");
-            }
-          });
           reject(new Error("tabs.update failed, ", error.message));
         });
         timeoutHandle = setTimeout(() => {
@@ -8053,8 +8032,29 @@ var require_background = __commonJS({
         }, timeoutMs);
       });
     }
-    function scrapeDataFromDom(tabId) {
-      return chrome.scripting.executeScript({
+    async function scrapeDataFromDom(tabId) {
+      const foundImage = await waitForSelector(
+        tabId,
+        "img.styles_image__nuVfa",
+        1e4
+      );
+      if (!foundImage) {
+        return {
+          error: "Could not load image elements"
+        };
+      }
+      const foundGetShippingLabelBtn = await waitForSelector(
+        tabId,
+        "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8",
+        1e4
+      );
+      console.log("found label? ", foundGetShippingLabelBtn);
+      if (!foundGetShippingLabelBtn) {
+        return {
+          error: "could not load get shipping label button"
+        };
+      }
+      const [injectionResult] = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => {
           const imageElements = document.querySelectorAll(
@@ -8076,14 +8076,16 @@ var require_background = __commonJS({
             return element.getAttribute("src");
           });
           const user = usernames[0];
+          const getLabelBtn = document.querySelector(
+            "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8"
+          );
           return {
             username: user,
             images
           };
         }
-      }).then(([injectionResult]) => {
-        return injectionResult.result;
       });
+      return injectionResult.result;
     }
     chrome.action.onClicked.addListener((tab) => {
       chrome.action.setPopup({ popup: "./src/popup.html" });
@@ -8182,9 +8184,16 @@ var require_background = __commonJS({
         }
         console.log(visitedUrls);
         sendResponse({ success: true });
-      } else {
       }
       return true;
+    });
+    chrome.tabs.onUpdated.addListener(function onUpdate(tabId, changeInfo) {
+      const newUrl = changeInfo.url;
+      if (newUrl?.includes("goshippo")) {
+        console.log("\u{1F575}\uFE0F\u200D\u2642\uFE0F Goshippo tab navigated to:", newUrl);
+        chrome.tabs.remove(tabId).catch(() => {
+        });
+      }
     });
   }
 });

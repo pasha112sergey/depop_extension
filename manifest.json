@@ -11,12 +11,18 @@
         "service_worker": "dist/background.bundle.js",
         "type": "module"
     },
-    "permissions": ["activeTab", "scripting", "downloads", "storage"],
-    "host_permissions": ["https://depop.com/sellinghub/*"],
-    "content_scripts": [
-        {
-            "matches": ["*://*.depop.com/*"],
-            "js": ["src/blur-content.js"]
-        }
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "downloads",
+        "storage",
+        "webRequest",
+        "tabs"
+    ],
+    "host_permissions": [
+        "https://depop.com/*",
+        "https://www.depop.com/*",
+        "https://webapi.depop.com/*",
+        "https://deliver.goshippo.com/*"
     ]
 }

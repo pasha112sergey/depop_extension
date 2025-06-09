@@ -3,6 +3,19 @@ import * as parse5 from "parse5";
 console.log("parse5.parse is", typeof parse5.parse);
 let visitedUrls = [];
 
+// In your background service worker (background.js or background.bundle.js):
+
+// chrome.webRequest.onBeforeRequest.addListener(
+//     (details) => {
+//         // details.url is the exact shipping‐label JSON endpoint
+//         if (details.url.includes("/api/v1/shipping/label/")) {
+//             console.log("📦 [bg] caught label‐JSON request:", details.url);
+//         }
+//         return {};
+//     },
+//     { urls: ["*://webapi.depop.com/api/v1/shipping/label/*"] }
+// );
+
 async function waitForSelector(tabId, selector, timeoutMs = 10000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
@@ -37,13 +50,6 @@ function navigateToUrl(tabId, url, timeoutMs = 15000) {
             if (changeInfo.status === "complete") {
                 chrome.tabs.onUpdated.removeListener(onUpdatedListener);
                 clearTimeout(timeoutHandle);
-                chrome.scripting.executeScript({
-                    target: { tabId },
-                    func: () => {
-                        const body = document.getElementsByTagName("body")[0];
-                        body.classList.remove("blur-l");
-                    },
-                });
                 resolve();
             }
         }
@@ -53,20 +59,6 @@ function navigateToUrl(tabId, url, timeoutMs = 15000) {
         chrome.tabs.update(tabId, { url }).catch((error) => {
             chrome.tabs.onUpdated.removeListener(onUpdatedListener);
             clearTimeout(timeoutHandle);
-            chrome.scripting.executeScript({
-                target: { tabId },
-                func: () => {
-                    const body = document.getElementsByTagName("body")[0];
-                    body.classList.remove("blur-xl");
-                },
-            });
-            chrome.scripting.executeScript({
-                target: { tabId },
-                func: () => {
-                    const body = document.getElementsByTagName("body")[0];
-                    body.classList.remove("blur-xl");
-                },
-            });
             reject(new Error("tabs.update failed, ", error.message));
         });
 
@@ -84,42 +76,68 @@ function navigateToUrl(tabId, url, timeoutMs = 15000) {
     });
 }
 
-function scrapeDataFromDom(tabId) {
-    return chrome.scripting
-        .executeScript({
-            target: { tabId },
-            func: () => {
-                const imageElements = document.querySelectorAll(
-                    "img.styles_image__nuVfa"
-                );
-                if (!imageElements) {
-                    return { error: "No aside img found in live DOM" };
-                }
-                const p_tags = document.querySelectorAll(
-                    "p._text_bevez_41._shared_bevez_6._normal_bevez_51._caption1_bevez_55"
-                );
-                const usernames = Array.from(p_tags)
-                    .filter((ele) => {
-                        if (ele.textContent.includes("@")) return true;
-                        else return false;
-                    })
-                    .map((user) => {
-                        return user.innerHTML;
-                    });
-                const images = Array.from(imageElements).map((element) => {
-                    return element.getAttribute("src");
+async function scrapeDataFromDom(tabId) {
+    const foundImage = await waitForSelector(
+        tabId,
+        "img.styles_image__nuVfa",
+        10000
+    );
+    if (!foundImage) {
+        return {
+            error: "Could not load image elements",
+        };
+    }
+
+    const foundGetShippingLabelBtn = await waitForSelector(
+        tabId,
+        "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8",
+        10000
+    );
+    console.log("found label? ", foundGetShippingLabelBtn);
+    if (!foundGetShippingLabelBtn) {
+        return {
+            error: "could not load get shipping label button",
+        };
+    }
+
+    const [injectionResult] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+            const imageElements = document.querySelectorAll(
+                "img.styles_image__nuVfa"
+            );
+            if (!imageElements) {
+                return { error: "No aside img found in live DOM" };
+            }
+            const p_tags = document.querySelectorAll(
+                "p._text_bevez_41._shared_bevez_6._normal_bevez_51._caption1_bevez_55"
+            );
+            const usernames = Array.from(p_tags)
+                .filter((ele) => {
+                    if (ele.textContent.includes("@")) return true;
+                    else return false;
+                })
+                .map((user) => {
+                    return user.innerHTML;
                 });
-                const user = usernames[0];
-                return {
-                    username: user,
-                    images: images,
-                };
-                // make a dictionary: {username: [images]} and return it
-            },
-        })
-        .then(([injectionResult]) => {
-            return injectionResult.result;
-        });
+            const images = Array.from(imageElements).map((element) => {
+                return element.getAttribute("src");
+            });
+            const user = usernames[0];
+
+            // get the shipping label
+            const getLabelBtn = document.querySelector(
+                "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8"
+            );
+
+            return {
+                username: user,
+                images: images,
+            };
+            // make a dictionary: {username: [images]} and return it
+        },
+    });
+    return injectionResult.result;
 }
 
 // 1) When the user clicks the extension icon, show popup.html
@@ -241,7 +259,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         console.log(visitedUrls);
         sendResponse({ success: true });
-    } else {
     }
     return true;
+});
+
+// <--------------------------------------------->
+// <--------------------------------------------->
+// <--------------------------------------------->
+// CATCHING THE LABEL REQUEST
+// <--------------------------------------------->
+// <--------------------------------------------->
+// <--------------------------------------------->
+// background.bundle.js
+
+// background.bundle.js
+// background.bundle.js
+
+// 1) Whenever *any* tab finishes loading, try to attach if it’s a selling-hub URL
+chrome.tabs.onUpdated.addListener(function onUpdate(tabId, changeInfo) {
+    const newUrl = changeInfo.url; // only fires when URL *actually* changes
+    if (newUrl?.includes("goshippo")) {
+        console.log("🕵️‍♂️ Goshippo tab navigated to:", newUrl);
+        chrome.tabs.remove(tabId).catch(() => {
+            /* ignore missing-tab errors */
+        });
+    }
 });
