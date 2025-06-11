@@ -2,50 +2,49 @@ let dataReceived = new Set();
 let links = [];
 let totalOrderInfo = {};
 let working = false;
+
 function saveData() {
     const arrayToSave = Array.from(dataReceived);
     chrome.storage.local.set(
         {
-            savedReceived: arrayToSave,
             savedUsernames: links,
+            lastResults: Array.from(dataReceived),
         },
         () => {
-            console.log(
-                "Saved data/usernames to storage: ",
-                dataReceived,
-                links
-            );
+            console.log("Saved data/usernames to storage: ", dataReceived);
         }
     );
 }
 
 function clearTableBodies() {
     const table = document.querySelector("table");
-    table.querySelectorAll("tbody").forEach((tb) => tb.remove());
+    table.querySelectorAll("tbody.data-body").forEach((tb) => tb.remove());
 }
 
 function loadRows() {
     if (dataReceived.size > 0) {
-        console.log("dataReceived: ", dataReceived);
+        console.log("dataReceived: to be loaded: ", dataReceived);
         clearTableBodies();
         addTableRows(Array.from(dataReceived));
     }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    chrome.storage.local.get(["savedReceived", "savedUsernames"], (result) => {
+    chrome.storage.local.get(["lastResults", "savedUsernames"], (result) => {
         console.log("saved users: ", result.savedUsernames);
-        console.log("saved received: ", result.savedReceived);
+        console.log("saved received: ", result.lastResults);
 
         if (Array.isArray(result.savedUsernames)) {
             links = result.savedUsernames;
         }
-        if (Array.isArray(result.savedReceived)) {
-            dataReceived = new Set(result.savedReceived);
+        // if (Array.isArray(result.savedReceived)) {
+        //     dataReceived = new Set(result.savedReceived);
+        // }
+        if (Array.isArray(result.lastResults)) {
+            console.log("results: ", result.lastResults);
+            dataReceived = new Set(result.lastResults);
         }
 
-        console.log("current usernames: ", links);
-        console.log("current dataReceived: ", dataReceived);
         loadRows();
     });
 
@@ -69,20 +68,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             console.log("response received: ", response);
-            if (Array.isArray(response.resultsArray)) {
-                // response.resultsArray is an array of objects { username, images }
-                // We want to merge them into our dataReceived Set (no duplicates).
-
-                response.resultsArray.forEach((item) => {
-                    // If the Set doesn’t already have an entry with the same username, add it.
-                    // However, since Set uses object identity and we want to dedupe by username,
-                    // we need to check manually:
-                    const alreadyExists = Array.from(dataReceived).some(
-                        (existing) => existing.username === item.username
+            if (Array.isArray(response.results.resultsArray)) {
+                chrome.storage.local.get(["lastResults"], (data) => {
+                    console.log(
+                        "data received from the call: ",
+                        data.lastResults
                     );
-                    if (!alreadyExists) {
-                        dataReceived.add(item);
-                    }
+                    dataReceived = data.lastResults;
                 });
 
                 // Now re-render everything from the updated Set
@@ -99,6 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const delSelected = document.getElementById("deleteAll");
     console.log(delSelected);
     delSelected.addEventListener("click", () => {
+        const selectAllBtn = document.getElementById("selectAll");
+        selectAllBtn.innerHTML = "Select All";
+        allSelected = false;
         console.log("clicked");
         const boxes = document.querySelectorAll('input[type="checkbox"]');
         console.log("boxes: ", boxes);
@@ -110,22 +105,39 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.log(linkToClear, "<--- link to clear");
                 if (linkToClear) {
                     chrome.runtime.sendMessage(
-                        {
-                            type: "clear",
-                            link: linkToClear,
-                        },
+                        { type: "clear", link: linkToClear },
                         (response) => {
                             if (chrome.runtime.lastError) {
                                 console.error(
                                     "Error clearing link:",
                                     chrome.runtime.lastError
                                 );
-                            } else {
-                                console.log(
-                                    "Background acknowledged clear:",
-                                    linkToClear
-                                );
+                                return;
                             }
+                            // 1) Pull the *updated* array from storage
+                            chrome.storage.local.get(
+                                ["lastResults"],
+                                ({ lastResults }) => {
+                                    // 2) Reset your in‐memory state completely
+                                    dataReceived.clear();
+                                    links = [];
+
+                                    if (Array.isArray(lastResults)) {
+                                        lastResults.forEach((item) => {
+                                            dataReceived.add(item);
+                                            links.push(item.username);
+                                        });
+                                    }
+
+                                    // 3) Re‐render from scratch
+                                    // clearTableBodies();
+                                    // addTableRows(Array.from(dataReceived));
+                                    // In your popup.js, anywhere (for example in your clear‐handler after you finish re‐render):
+                                    window.location.reload();
+                                    // 4) Persist your savedReceived / savedUsernames so storage stays in sync
+                                    saveData();
+                                }
+                            );
                         }
                     );
 
@@ -171,6 +183,20 @@ async function addTableRows(responseIterable) {
         if (!resp.username) continue;
         console.log("resp looks like: ", resp);
         createRows(resp);
+
+        // 1) After you render your table rows (or on DOMContentLoaded), wire this up:
+        document.querySelectorAll("details").forEach((detail) => {
+            detail.addEventListener("toggle", (e) => {
+                // If this <details> was just opened…
+                if (detail.open) {
+                    // Close every other <details>
+                    document.querySelectorAll("details").forEach((other) => {
+                        if (other !== detail) other.open = false;
+                    });
+                }
+            });
+        });
+
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 }
@@ -179,6 +205,7 @@ async function createRows(resp) {
     const table = document.querySelector("table");
     // Create a <tbody> wrapper for this one row
     const wrapper = document.createElement("tbody");
+    wrapper.classList.add("data-body");
     // Attach the receipt URL so we can reference it later
     wrapper.dataset.link = resp.link;
 
@@ -190,7 +217,7 @@ async function createRows(resp) {
             </td>
             <td class="p-2 bg-emerald-300 group-hover:bg-emerald-200">
               <div class="flex items-center w-full">
-                <span class="usernameCell flex-1 text-center font-bold">${
+                <span id="usernameCell" class="usernameCell flex-1 text-center font-bold">${
                     resp.username
                 }</span>
               </div>
@@ -204,10 +231,16 @@ async function createRows(resp) {
                          class="w-7 h-7 hover:bg-emerald-100 hover:rounded-full p-1"/>
                   </button>
                 </summary>
-                <div id="images-${resp.username.slice(1)}"
-                     class="absolute -left-[100px] mt-1 w-auto overflow-scroll h-max-[75px]
-                            flex flex-col bg-white text-black font-bold
-                            border-gray-300 rounded-xl shadow-md p-2 z-10"></div>
+                    <div id="images-${resp.username.slice(1)}"
+                        class="absolute -left-[100px] mt-1 w-auto overflow-scroll h-max-[75px]
+                                flex flex-col bg-white text-black font-bold
+                                border-gray-300 rounded-xl shadow-md p-2 z-10">
+
+                            <div class="hidden" id="shippingLink">${
+                                resp.label
+                            }</div>
+
+                    </div>
               </details>
             </td>
           </tr>
@@ -218,18 +251,22 @@ async function createRows(resp) {
 
     // Fill in the “images” part under View Orders
     const newRow = wrapper.querySelector("tr");
-    for (let order of resp.images) {
+    let count = 0;
+    for (let image of resp.images) {
         const ordersContainer = newRow.querySelector(
             `#images-${resp.username.slice(1)}`
         );
         const sizeField = document.createElement("div");
         sizeField.classList.add("mb-2");
         sizeField.innerHTML = `
-            <div class="pt-2 flex flex-row gap-2 items-center">
-              <img src="${order}" alt="order1" class="object-cover rounded-full h-15 w-15"/>
+            <div id="image-${count++}" class="pt-2 flex flex-row gap-2 items-center">
+
+
+
+              <img src="${image}" alt="order1" class="object-cover rounded-full h-15 w-15"/>
               <label class="block text-[10px] text-black mb-1">Enter size:</label>
               <input type="text" placeholder="28-46"
-                     class="w-[200px] h-7 px-2 py-1 border rounded-full text-[10px]"/>
+                    class="w-[200px] h-7 px-2 py-1 border rounded-full text-[10px]"/>
             </div>
           `;
         ordersContainer.appendChild(sizeField);
@@ -286,15 +323,112 @@ async function createRows(resp) {
         console.log("hello!");
         console.log(dataReceived);
         console.log(links);
+
         saveData();
     });
 
     saveData();
 }
+
 const selectAllBtn = document.getElementById("selectAll");
 selectAllBtn.addEventListener("click", () => {
+    if (dataReceived.size > 0) {
+        const checkboxes = table.querySelectorAll('input[type="checkbox"');
+        allSelected = !allSelected;
+        checkboxes.forEach((cb) => (cb.checked = allSelected));
+        selectAllBtn.textContent = allSelected ? "Deselect all" : "Select all";
+    }
+});
+
+const sendEmailsBtn = document.getElementById("sendEmails");
+sendEmailsBtn.addEventListener("click", () => {
+    console.log("clicked send emails");
+
     const checkboxes = table.querySelectorAll('input[type="checkbox"');
-    allSelected = !allSelected;
-    checkboxes.forEach((cb) => (cb.checked = allSelected));
-    selectAllBtn.textContent = allSelected ? "Deselect all" : "Select all";
+
+    const emailBody = [];
+    checkboxes.forEach((cb) => {
+        if (cb.checked) {
+            // create table element
+            const wrapperTable = document.createElement("table");
+            const wrapperBody = document.createElement("tbody");
+            wrapperTable.appendChild(wrapperBody);
+
+            const row = cb.closest("tbody");
+
+            // grab username and orders container
+            const username = row.querySelector("#usernameCell").innerHTML;
+            console.log("username in create Email: ", username);
+            const orderImagesAndSizes = row.querySelector(
+                `#images-${username.slice(1)}`
+            );
+
+            const shippingLink = row.querySelector("#shippingLink").innerHTML;
+            console.log("shipping Link element: ", shippingLink);
+            //log
+            console.log("orders container: ", orderImagesAndSizes);
+
+            // loop through order entries
+            for (let count = 0; count < 15; count++) {
+                const order = orderImagesAndSizes.querySelector(
+                    `#image-${count}`
+                );
+                console.log(`order: #image-${count} is ${order}`);
+                if (order) {
+                    // Grab the first <img> and the input value
+                    const img = order.querySelector("img");
+                    const size = order.querySelector("input")?.value || "";
+
+                    const tableRow = document.createElement("tr");
+                    tableRow.innerHTML = `
+                        <td>
+                        <img
+                            src="${img.src}"
+                            alt="Icon"
+                            style="width: 300px; height: 300px; object-fit: cover;"
+                        />
+                        </td>
+                        <td>
+                        <span style="font-size: 3rem; line-height: 1.2;">
+                            ${size}
+                        </span>
+                        </td>
+                    `;
+                    wrapperBody.appendChild(tableRow);
+                    console.log("row appended: ", row);
+                } else {
+                    break;
+                }
+            }
+            console.log("wrapper div: ", wrapperTable);
+            const wrapperString = wrapperTable.outerHTML;
+            emailBody.push({
+                username: username,
+                html: wrapperString,
+                shippingLink: shippingLink,
+            });
+        }
+    });
+
+    console.log("emailBody: ", emailBody);
+    for (email of emailBody) {
+        console.log("email sent: ", email);
+        sendEmailsBtn.innerHTML = "Sent!";
+        chrome.runtime.sendMessage(
+            {
+                type: "send-email",
+                to: "safronov1112@gmail.com",
+                subject: `depop-${email.username}`,
+                body: email.html,
+                shippingLink: email.shippingLink,
+            },
+            (response) => {
+                if (response.error) {
+                    sendEmailsBtn.innerHTML = "Error occurred";
+                }
+                sendEmailsBtn.innerHTML = "Send Selected";
+                console.log("Email send response", response);
+            }
+        );
+    }
 });

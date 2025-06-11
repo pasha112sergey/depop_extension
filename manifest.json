@@ -12,6 +12,8 @@
         "type": "module"
     },
     "permissions": [
+        "cookies",
+        "identity",
         "activeTab",
         "scripting",
         "downloads",
@@ -24,5 +26,9 @@
         "https://www.depop.com/*",
         "https://webapi.depop.com/*",
         "https://deliver.goshippo.com/*"
-    ]
+    ],
+    "oauth2": {
+        "client_id": "369149849398-a3fot2378lbf3usarbr6jd7sla21mkav.apps.googleusercontent.com",
+        "scopes": ["https://www.googleapis.com/auth/gmail.send"]
+    }
 }

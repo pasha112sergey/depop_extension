@@ -7981,6 +7981,54 @@ var require_background = __commonJS({
     init_dist();
     console.log("parse5.parse is", typeof parse);
     var visitedUrls = [];
+    console.log(
+      "Manifest client ID:",
+      chrome.runtime.getManifest().oauth2.client_id
+    );
+    console.log("Redirect URI:", chrome.identity.getRedirectURL());
+    function base64UrlEncode(str) {
+      return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+    function getGmailToken(interactive = true) {
+      return new Promise((resolve, reject) => {
+        chrome.identity.getAuthToken({ interactive }, (token) => {
+          if (chrome.runtime.lastError || !token) {
+            return reject(
+              chrome.runtime.lastError || new Error("No token")
+            );
+          }
+          resolve(token);
+        });
+      });
+    }
+    async function sendGmailMultipart({ to, subject, htmlBody }) {
+      const token = await getGmailToken(true);
+      const messageLines = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: text/html; charset="UTF-8"`,
+        ``,
+        htmlBody
+      ];
+      const raw = base64UrlEncode(messageLines.join("\r\n"));
+      const res = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ raw })
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(`Gmail API error: ${err.error.message}`);
+      }
+      return res.json();
+    }
     async function waitForSelector(tabId, selector, timeoutMs = 1e4) {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
@@ -8014,7 +8062,7 @@ var require_background = __commonJS({
           }
         }
         chrome.tabs.onUpdated.addListener(onUpdatedListener);
-        chrome.tabs.update(tabId, { url }).catch((error) => {
+        chrome.tabs.update(tabId, { url, active: false }).catch((error) => {
           chrome.tabs.onUpdated.removeListener(onUpdatedListener);
           clearTimeout(timeoutHandle);
           reject(new Error("tabs.update failed, ", error.message));
@@ -8032,6 +8080,40 @@ var require_background = __commonJS({
         }, timeoutMs);
       });
     }
+    async function clickAndGetGoshippoUrl(tabId, timeoutMs = 500) {
+      const before = new Set((await chrome.tabs.query({})).map((t) => t.id));
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+          const btn = document.querySelector(
+            "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton--label__3i_n0"
+          );
+          if (!btn) throw new Error("Label button not found");
+          btn.click();
+        }
+      });
+      const interval = 200;
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        const tabs2 = await chrome.tabs.query({});
+        const found2 = tabs2.find(
+          (t) => !before.has(t.id) && t.url?.includes("goshippo")
+        );
+        if (found2) {
+          chrome.tabs.remove(found2.id).catch(() => {
+          });
+          return found2;
+        }
+        await new Promise((r) => setTimeout(r, interval));
+      }
+      const tabs = await chrome.tabs.query({});
+      const found = tabs.find((t) => t.url?.includes("depop"));
+      if (found) {
+        return "NOT_URL";
+      }
+      console.log("timed out in click and get");
+      throw new Error("Timed out waiting for goshippo tab");
+    }
     async function scrapeDataFromDom(tabId) {
       const foundImage = await waitForSelector(
         tabId,
@@ -8048,7 +8130,7 @@ var require_background = __commonJS({
         "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8",
         1e4
       );
-      console.log("found label? ", foundGetShippingLabelBtn);
+      console.log("found label button? ", foundGetShippingLabelBtn);
       if (!foundGetShippingLabelBtn) {
         return {
           error: "could not load get shipping label button"
@@ -8076,16 +8158,31 @@ var require_background = __commonJS({
             return element.getAttribute("src");
           });
           const user = usernames[0];
-          const getLabelBtn = document.querySelector(
-            "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8"
-          );
-          return {
+          let ret2 = {
             username: user,
-            images
+            images,
+            shippingLink: null
           };
+          return ret2;
         }
       });
-      return injectionResult.result;
+      let ret = injectionResult.result;
+      let shippingLink;
+      try {
+        shippingLink = await clickAndGetGoshippoUrl(
+          tabId,
+          /*timeoutMs=*/
+          8e3
+        );
+      } catch (err) {
+        return { error: err.message };
+      }
+      console.log("\u2705 Got goshippo URL:", shippingLink);
+      chrome.tabs.remove(shippingLink.id).catch(() => {
+      });
+      ret.shippingLink = shippingLink.url;
+      console.log("ret: ", ret);
+      return ret;
     }
     chrome.action.onClicked.addListener((tab) => {
       chrome.action.setPopup({ popup: "./src/popup.html" });
@@ -8153,47 +8250,102 @@ var require_background = __commonJS({
               if (scrapeResult.error) {
                 resultsArray.push({ link, error: scrapeResult.error });
               } else {
+                console.log("raw scrape result: ", scrapeResult);
                 console.log(
-                  `IMAGE(S) FOUND FOR USER ${scrapeResult.username}:---------> ${scrapeResult.images}`
+                  `IMAGE(S) FOUND FOR USER ${scrapeResult.username}:---------> ${scrapeResult.images}, ${scrapeResult.shippingLink}`
                 );
-                resultsArray.push({
-                  username: scrapeResult.username,
-                  images: scrapeResult.images,
-                  link
-                });
+                if (scrapeResult.shippingLink && scrapeResult.shippingLink !== "NOT_URL") {
+                  resultsArray.push({
+                    username: scrapeResult.username,
+                    images: scrapeResult.images,
+                    link,
+                    label: scrapeResult.shippingLink
+                    // or rename to “shippingLink”
+                  });
+                }
               }
             } catch (innerErr) {
               resultsArray.push({ link, error: innerErr.message });
             }
           }
-          console.log("results array to send: ", resultsArray);
           navigateToUrl(tabId, "https://depop.com/sellinghub/sold-items");
+          chrome.storage.local.set({ lastResults: resultsArray }, () => {
+            console.log("results array stored: ", resultsArray);
+          });
           sendResponse({ resultsArray });
+          console.log("sent response on line 408: ", resultsArray);
         })();
       }
       if (message.type === "clear") {
         const idx = visitedUrls.indexOf(message.link);
+        console.log("index to remove: ", idx);
         if (idx !== -1) {
           visitedUrls.splice(idx, 1);
-          console.log(
-            "Removed from visitedUrls",
-            message.link,
-            "->",
-            visitedUrls
-          );
+          console.log(visitedUrls);
         }
-        console.log(visitedUrls);
+        chrome.storage.local.get(["lastResults"], (data) => {
+          const lastResults = Array.isArray(data.lastResults) ? [...data.lastResults] : [];
+          console.log("lastResults before deletion: ", lastResults);
+          for (let i = 0; i < lastResults.length; i++) {
+            console.log(
+              "Comparing",
+              JSON.stringify(lastResults[i].link),
+              "=== message.link ===",
+              JSON.stringify(message.link)
+            );
+            if (lastResults[i].link === message.link) {
+              console.log(
+                "removing from lastResults at index: ",
+                i,
+                lastResults[i]
+              );
+              const updated = lastResults.filter(
+                (item) => item.link !== message.link
+              );
+              console.log(
+                "Removed link, new lastResults (filtered):",
+                updated.map((i2) => i2.username)
+              );
+              chrome.storage.local.set({ lastResults: updated }, () => {
+                console.log(
+                  "Saved data/usernames to storage: ",
+                  lastResults
+                );
+              });
+              break;
+            }
+          }
+          console.log("lastResults after removal: ", lastResults);
+        });
         sendResponse({ success: true });
       }
-      return true;
-    });
-    chrome.tabs.onUpdated.addListener(function onUpdate(tabId, changeInfo) {
-      const newUrl = changeInfo.url;
-      if (newUrl?.includes("goshippo")) {
-        console.log("\u{1F575}\uFE0F\u200D\u2642\uFE0F Goshippo tab navigated to:", newUrl);
-        chrome.tabs.remove(tabId).catch(() => {
+      if (message.type === "send-email") {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const tab = tabs[0];
+          if (!tab?.id) {
+            return sendResponse({ success: false, error: "No active tab" });
+          }
+          const tabId = tab.id;
+          console.log("received send-email type");
+          console.log(message.body);
+          sendGmailMultipart({
+            tabId,
+            to: message.to,
+            subject: message.subject,
+            htmlBody: `
+                <h2 style="font-family: Arial, sans-serif;">Depop Order</h2>
+                <p style="font-family: Arial, sans-serif;">Here are the order details:</p>
+                ${message.body}
+                <h2 style="font-family: Arial, sans-serif;">${message.shippingLink}</h2>
+            `
+          }).then((r) => sendResponse({ success: true, id: r.id })).catch((err) => {
+            console.log(err.message);
+            sendResponse({ success: false, error: err.message });
+          });
+          return true;
         });
       }
+      return true;
     });
   }
 });

@@ -3,18 +3,68 @@ import * as parse5 from "parse5";
 console.log("parse5.parse is", typeof parse5.parse);
 let visitedUrls = [];
 
-// In your background service worker (background.js or background.bundle.js):
+console.log(
+    "Manifest client ID:",
+    chrome.runtime.getManifest().oauth2.client_id
+);
+console.log("Redirect URI:", chrome.identity.getRedirectURL());
 
-// chrome.webRequest.onBeforeRequest.addListener(
-//     (details) => {
-//         // details.url is the exact shipping‐label JSON endpoint
-//         if (details.url.includes("/api/v1/shipping/label/")) {
-//             console.log("📦 [bg] caught label‐JSON request:", details.url);
-//         }
-//         return {};
-//     },
-//     { urls: ["*://webapi.depop.com/api/v1/shipping/label/*"] }
-// );
+// background.js
+
+// Helper to base64-url-encode a string
+function base64UrlEncode(str) {
+    return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Fetch an OAuth2 token for Gmail
+function getGmailToken(interactive = true) {
+    return new Promise((resolve, reject) => {
+        chrome.identity.getAuthToken({ interactive }, (token) => {
+            if (chrome.runtime.lastError || !token) {
+                return reject(
+                    chrome.runtime.lastError || new Error("No token")
+                );
+            }
+            resolve(token);
+        });
+    });
+}
+
+async function sendGmailMultipart({ to, subject, htmlBody }) {
+    const token = await getGmailToken(true);
+
+    // const pdfBase64 = await fetchPdfBase64InPage(tabId, textBody);
+
+    const messageLines = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        `MIME-Version: 1.0`,
+        `Content-Type: text/html; charset="UTF-8"`,
+        ``,
+        htmlBody,
+    ];
+
+    const raw = base64UrlEncode(messageLines.join("\r\n"));
+
+    // 2) Send it
+    const res = await fetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ raw }),
+        }
+    );
+
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(`Gmail API error: ${err.error.message}`);
+    }
+    return res.json();
+}
 
 async function waitForSelector(tabId, selector, timeoutMs = 10000) {
     const start = Date.now();
@@ -56,7 +106,7 @@ function navigateToUrl(tabId, url, timeoutMs = 15000) {
 
         chrome.tabs.onUpdated.addListener(onUpdatedListener);
 
-        chrome.tabs.update(tabId, { url }).catch((error) => {
+        chrome.tabs.update(tabId, { url, active: false }).catch((error) => {
             chrome.tabs.onUpdated.removeListener(onUpdatedListener);
             clearTimeout(timeoutHandle);
             reject(new Error("tabs.update failed, ", error.message));
@@ -76,6 +126,51 @@ function navigateToUrl(tabId, url, timeoutMs = 15000) {
     });
 }
 
+/**
+ * Click the label-button in page, then wait up to `timeoutMs` ms
+ * for a brand‐new tab (i.e. not in `beforeTabs`) whose URL contains "goshippo".
+ */
+async function clickAndGetGoshippoUrl(tabId, timeoutMs = 500) {
+    // 1) Capture tabs that already exist
+    const before = new Set((await chrome.tabs.query({})).map((t) => t.id));
+
+    // 2) Click the button in-page
+    await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => {
+            const btn = document.querySelector(
+                "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton--label__3i_n0"
+            );
+            if (!btn) throw new Error("Label button not found");
+            btn.click();
+        },
+    });
+
+    // 3) Poll for the new tab
+    const interval = 200;
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const tabs = await chrome.tabs.query({});
+        // Find a tab that wasn’t in `before` and whose URL has "goshippo"
+        const found = tabs.find(
+            (t) => !before.has(t.id) && t.url?.includes("goshippo")
+        );
+        if (found) {
+            // 4) Close it and return its URL
+            chrome.tabs.remove(found.id).catch(() => {});
+            return found;
+        }
+        await new Promise((r) => setTimeout(r, interval));
+    }
+    const tabs = await chrome.tabs.query({});
+    const found = tabs.find((t) => t.url?.includes("depop"));
+    if (found) {
+        return "NOT_URL";
+    }
+    console.log("timed out in click and get");
+    throw new Error("Timed out waiting for goshippo tab");
+}
+
 async function scrapeDataFromDom(tabId) {
     const foundImage = await waitForSelector(
         tabId,
@@ -93,7 +188,7 @@ async function scrapeDataFromDom(tabId) {
         "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8",
         10000
     );
-    console.log("found label? ", foundGetShippingLabelBtn);
+    console.log("found label button? ", foundGetShippingLabelBtn);
     if (!foundGetShippingLabelBtn) {
         return {
             error: "could not load get shipping label button",
@@ -125,19 +220,42 @@ async function scrapeDataFromDom(tabId) {
             });
             const user = usernames[0];
 
-            // get the shipping label
-            const getLabelBtn = document.querySelector(
-                "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8"
-            );
+            // // get the shipping label button
+            // const getLabelBtn = document.querySelector(
+            //     "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8"
+            // );
 
-            return {
+            let ret = {
                 username: user,
                 images: images,
+                shippingLink: null,
             };
+
+            // // click it
+            // getLabelBtn.click();
+
+            return ret;
+
             // make a dictionary: {username: [images]} and return it
         },
     });
-    return injectionResult.result;
+
+    let ret = injectionResult.result;
+
+    let shippingLink;
+    try {
+        shippingLink = await clickAndGetGoshippoUrl(tabId, /*timeoutMs=*/ 8000);
+    } catch (err) {
+        return { error: err.message };
+    }
+
+    console.log("✅ Got goshippo URL:", shippingLink);
+
+    chrome.tabs.remove(shippingLink.id).catch(() => {});
+
+    ret.shippingLink = shippingLink.url;
+    console.log("ret: ", ret);
+    return ret;
 }
 
 // 1) When the user clicks the extension icon, show popup.html
@@ -226,62 +344,183 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         resultsArray.push({ link, error: scrapeResult.error });
                     } else {
                         // console.log("raw scrape result: ", scrapeResult);
+                        console.log("raw scrape result: ", scrapeResult);
                         console.log(
-                            `IMAGE(S) FOUND FOR USER ${scrapeResult.username}:---------> ${scrapeResult.images}`
+                            `IMAGE(S) FOUND FOR USER ${scrapeResult.username}:---------> ${scrapeResult.images}, ${scrapeResult.shippingLink}`
                         );
-                        resultsArray.push({
-                            username: scrapeResult.username,
-                            images: scrapeResult.images,
-                            link: link,
-                        });
+
+                        if (
+                            scrapeResult.shippingLink &&
+                            scrapeResult.shippingLink !== "NOT_URL"
+                        ) {
+                            // chrome.downloads.download(
+                            //     {
+                            //         url: scrapeResult.shippingLink, // ← use scrapeResult.shippingLink
+                            //         filename: `label-${Date.now()}.pdf`,
+                            //         saveAs: false,
+                            //     },
+                            //     (downloadId) => {
+                            //         if (chrome.runtime.lastError) {
+                            //             console.error(
+                            //                 "Download failed:",
+                            //                 chrome.runtime.lastError
+                            //             );
+                            //         } else {
+                            //             console.log(
+                            //                 "Download started, id=",
+                            //                 downloadId
+                            //             );
+                            //         }
+                            //     }
+                            // );
+
+                            resultsArray.push({
+                                username: scrapeResult.username,
+                                images: scrapeResult.images,
+                                link,
+                                label: scrapeResult.shippingLink, // or rename to “shippingLink”
+                            });
+                        }
                     }
                 } catch (innerErr) {
                     resultsArray.push({ link, error: innerErr.message });
                 }
             }
-            console.log("results array to send: ", resultsArray);
             navigateToUrl(tabId, "https://depop.com/sellinghub/sold-items");
+            chrome.storage.local.set({ lastResults: resultsArray }, () => {
+                console.log("results array stored: ", resultsArray);
+            });
             sendResponse({ resultsArray: resultsArray });
+            console.log("sent response on line 408: ", resultsArray);
         })();
 
         // Tell Chrome we’ll call sendResponse asynchronously
     }
     if (message.type === "clear") {
         const idx = visitedUrls.indexOf(message.link);
+        console.log("index to remove: ", idx);
         if (idx !== -1) {
             visitedUrls.splice(idx, 1);
-            console.log(
-                "Removed from visitedUrls",
-                message.link,
-                "->",
-                visitedUrls
-            );
+            console.log(visitedUrls);
         }
-        console.log(visitedUrls);
+
+        chrome.storage.local.get(["lastResults"], (data) => {
+            const lastResults = Array.isArray(data.lastResults)
+                ? [...data.lastResults]
+                : [];
+
+            console.log("lastResults before deletion: ", lastResults);
+
+            for (let i = 0; i < lastResults.length; i++) {
+                console.log(
+                    "Comparing",
+                    JSON.stringify(lastResults[i].link),
+                    "=== message.link ===",
+                    JSON.stringify(message.link)
+                );
+
+                if (lastResults[i].link === message.link) {
+                    console.log(
+                        "removing from lastResults at index: ",
+                        i,
+                        lastResults[i]
+                    );
+                    const updated = lastResults.filter(
+                        (item) => item.link !== message.link
+                    );
+
+                    console.log(
+                        "Removed link, new lastResults (filtered):",
+                        updated.map((i) => i.username)
+                    );
+
+                    chrome.storage.local.set({ lastResults: updated }, () => {
+                        console.log(
+                            "Saved data/usernames to storage: ",
+                            lastResults
+                        );
+                    });
+                    break;
+                }
+            }
+
+            console.log("lastResults after removal: ", lastResults);
+        });
+
         sendResponse({ success: true });
+    }
+    if (message.type === "send-email") {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tab = tabs[0];
+            if (!tab?.id) {
+                return sendResponse({ success: false, error: "No active tab" });
+            }
+            const tabId = tab.id;
+
+            console.log("received send-email type");
+            console.log(message.body);
+            sendGmailMultipart({
+                tabId,
+                to: message.to,
+                subject: message.subject,
+                htmlBody: `
+                <h2 style="font-family: Arial, sans-serif;">Depop Order</h2>
+                <p style="font-family: Arial, sans-serif;">Here are the order details:</p>
+                ${message.body}
+                <h2 style="font-family: Arial, sans-serif;">${message.shippingLink}</h2>
+            `,
+            })
+                .then((r) => sendResponse({ success: true, id: r.id }))
+                .catch((err) => {
+                    console.log(err.message);
+                    sendResponse({ success: false, error: err.message });
+                });
+            return true;
+        });
     }
     return true;
 });
 
-// <--------------------------------------------->
-// <--------------------------------------------->
-// <--------------------------------------------->
-// CATCHING THE LABEL REQUEST
-// <--------------------------------------------->
-// <--------------------------------------------->
-// <--------------------------------------------->
-// background.bundle.js
-
-// background.bundle.js
-// background.bundle.js
-
-// 1) Whenever *any* tab finishes loading, try to attach if it’s a selling-hub URL
-chrome.tabs.onUpdated.addListener(function onUpdate(tabId, changeInfo) {
-    const newUrl = changeInfo.url; // only fires when URL *actually* changes
-    if (newUrl?.includes("goshippo")) {
-        console.log("🕵️‍♂️ Goshippo tab navigated to:", newUrl);
-        chrome.tabs.remove(tabId).catch(() => {
-            /* ignore missing-tab errors */
+function getCookieHeader(url) {
+    return new Promise((resolve) => {
+        chrome.cookies.getAll({ url }, (cookies) => {
+            const header = cookies
+                .map((c) => `${c.name}=${c.value}`)
+                .join("; ");
+            resolve(header);
         });
-    }
-});
+    });
+}
+
+// async function fetchPdfAsBase64(url) {
+//     const response = await fetch(url, {
+//         method: "GET",
+//         // this tells Chrome to attach any cookies it has for deliver.goshippo.com
+//         credentials: "include",
+//     });
+//     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+//     const buffer = await response.arrayBuffer();
+//     let binary = "";
+//     for (let byte of new Uint8Array(buffer)) {
+//         binary += String.fromCharCode(byte);
+//     }
+//     return btoa(binary);
+// }
+
+async function fetchPdfBase64InPage(tabId, url) {
+    const [{ result: base64 }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: async (pdfUrl) => {
+            // runs inside the page—has its cookies
+            const resp = await fetch(pdfUrl, { credentials: "include" });
+            if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+            const buf = await resp.arrayBuffer();
+            // convert to binary string then btoa
+            let bin = "";
+            new Uint8Array(buf).forEach((b) => (bin += String.fromCharCode(b)));
+            return btoa(bin);
+        },
+        args: [url],
+    });
+    return base64;
+}

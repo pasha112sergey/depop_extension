@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="w-[500px] h-[600px]">
+<html lang="en" class="w-[500px] h-[100%]">
     <head>
         <title>Popup</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,66 +8,61 @@
     </head>
 
     <body
-        class="bg-[url('../images/diamond-sunset.png')] bg-cover bg-center bg-no-repeat h-[600px]"
+        class="bg-[url('../images/diamond-sunset.png')] bg-cover bg-center h-full"
     >
-        <div
-            class="bg-origin-padding flex flex-row justify-center items-center align-middle p-5 pb-2 gap-5"
-        >
-            <h1
-                class="text-xl text-white font-mono font-bold items-stretchjustify-center blur-none"
+        <div class="relative max-h-[600px] overflow-y-auto">
+            <div
+                class="bg-origin-padding flex flex-row justify-center items-center align-middle p-5 pb-2 gap-5"
             >
-                Depop Extension
-            </h1>
-            <button
-                id="logIn"
-                class="aligm-middle shadow-lg px-3 py-2 text-white items-center text-[10px] whitespace-nowrap text-align bg-orange-500 rounded-full hover:bg-orange-700 duration-500 ease-in-out hover:-translate-y-0.5"
-            >
-                Log in
-            </button>
-        </div>
+                <h1
+                    class="text-xl text-white font-mono font-bold items-stretchjustify-center blur-none"
+                >
+                    Depop Extension
+                </h1>
+            </div>
 
-        <div class="pl-4 pr-4 text-white content-stretch items-center">
-            <p
-                id="insertHere"
-                class="text-l text-white flex flex-row justify-center items-center font-mono pb-2"
-            >
-                Select usernames to ship
-            </p>
-            <table
-                class="table-auto w-full text-center rounded-xl border-emerald-300"
-            >
-                <thead>
-                    <th class="p-2 pl-4 pr-4 bg-emerald-400 w-7 text-black">
-                        Select
-                    </th>
-                    <th class="bg-emerald-300">
-                        <div
-                            class="items-center flex flex-row pl-3 w-full h-full"
-                        >
-                            <span
-                                class="flex-1 text-center text-black font-bold"
-                                >Username</span
+            <div class="pl-4 pr-4 text-white content-stretch items-center">
+                <p
+                    id="insertHere"
+                    class="text-l text-white flex flex-row justify-center items-center font-mono pb-2"
+                >
+                    Select usernames to ship
+                </p>
+                <table
+                    class="table-auto w-full text-center rounded-xl border-emerald-300"
+                >
+                    <thead>
+                        <th class="p-2 pl-4 pr-4 bg-emerald-400 w-7 text-black">
+                            Select
+                        </th>
+                        <th class="bg-emerald-300">
+                            <div
+                                class="items-center flex flex-row pl-3 w-full h-full"
                             >
-                        </div>
-                    </th>
-                    <th class="p-2 bg-emerald-300">
-                        <div class="items-center flex flex-row pl-3 w-full">
-                            <span
-                                class="flex-1 text-center text-black font-bold"
-                                >Set Sizes</span
-                            >
+                                <span
+                                    class="flex-1 text-center text-black font-bold"
+                                    >Username</span
+                                >
+                            </div>
+                        </th>
+                        <th class="p-2 bg-emerald-300">
+                            <div class="items-center flex flex-row pl-3 w-full">
+                                <span
+                                    class="flex-1 text-center text-black font-bold"
+                                    >Set sizes and details</span
+                                >
 
-                            <button id="deleteAll" class="ml-2">
-                                <img
-                                    src="../images/trash.png"
-                                    alt="Remove"
-                                    class="w-7 h-7 hover:bg-emerald-200 hover:rounded-full p-1"
-                                />
-                            </button>
-                        </div>
-                    </th>
-                </thead>
-                <!-- <tr class="text-black group">
+                                <button id="deleteAll" class="ml-2">
+                                    <img
+                                        src="../images/trash.png"
+                                        alt="Remove"
+                                        class="w-7 h-7 hover:bg-emerald-200 hover:rounded-full p-1"
+                                    />
+                                </button>
+                            </div>
+                        </th>
+                    </thead>
+                    <!-- <tr class="text-black group">
                         <td
                             class="p-2 pt-2.5 bg-emerald-400 text-center group-hover:bg-emerald-300"
                         >
@@ -116,7 +111,7 @@
                         >
                             <details class="relative">
                                 <!-- The summary that the user clicks -->
-                <!-- <summary
+                    <!-- <summary
                                     class="relative cursor-pointer select-none text-black font-bold w-full"
                                 >
                                     View Orders
@@ -135,7 +130,7 @@
                                     class="absolute -left-[100px] mt-1 w-auto overflow-scroll h-max-[75px] flex flex-col bg-white text-black font-bold border-gray-300 rounded-xl shadow-md p-2 z-10"
                                 >
                                     <!-- Sample images (just placeholders) -->
-                <!-- <div class="mb-2">
+                    <!-- <div class="mb-2">
                                         <div
                                             class="pt-2 flex flex-row gap-2 items-center"
                                         >
@@ -157,40 +152,41 @@
                                         </div>
                                     </div> -->
 
-                <!-- A size input field -->
-                <!-- </div>
+                    <!-- A size input field -->
+                    <!-- </div>
                             </details>
                         </td>
                     </tr> -->
-            </table>
+                </table>
 
-            <div
-                class="flex flex-row items-center justify-center m-1 mt-3 mb-3 space-x-2"
-            >
-                <button
-                    id="getUsernamesButton"
-                    type="button"
-                    class="shadow-lg px-3 py-2 items-center text-align text-[10px] whitespace-nowrap bg-emerald-400 rounded-full hover:bg-emerald-600 duration-500 ease-in-out hover:-translate-y-0.5"
+                <div
+                    class="flex flex-row items-center justify-center m-1 mt-3 mb-3 space-x-2 font-bold text-black"
                 >
-                    <div class="inline-flex items-center">
-                        <span id="getOrdersText">Get Orders</span>
-                        <div id="loading" class="hidden loader ml-2"></div>
-                    </div>
-                </button>
-                <button
-                    id="selectAll"
-                    class="shadow-lg px-3 py-2 w-[120px] items-center text-[10px] whitespace-nowrap text-align bg-blue-500 rounded-full hover:bg-blue-700 duration-500 ease-in-out hover:-translate-y-0.5"
-                >
-                    Select all
-                </button>
-                <button
-                    id="sendEmails"
-                    class="shadow-lg px-3 py-2 items-center text-align text-[10px] whitespace-nowrap flex-shrink-0 bg-rose-600 rounded-full hover:bg-rose-700 duration-500 ease-in-out hover:-translate-y-0.5"
-                >
-                    Send Selected
-                </button>
+                    <button
+                        id="getUsernamesButton"
+                        type="button"
+                        class="shadow-lg px-3 py-2 w-[120px] items-center text-align text-[10px] whitespace-nowrap bg-emerald-400 rounded-full hover:bg-emerald-200 duration-500 ease-in-out hover:-translate-y-0.5"
+                    >
+                        <div class="inline-flex items-center">
+                            <span id="getOrdersText">Get Orders</span>
+                            <div id="loading" class="hidden loader ml-2"></div>
+                        </div>
+                    </button>
+                    <button
+                        id="selectAll"
+                        class="shadow-lg px-3 py-2 w-[120px] items-center text-[10px] whitespace-nowrap text-align bg-lime-500 rounded-full hover:bg-lime-200 duration-500 ease-in-out hover:-translate-y-0.5"
+                    >
+                        Select all
+                    </button>
+                    <button
+                        id="sendEmails"
+                        class="shadow-lg px-3 py-2 w-[120px] items-center text-align text-[10px] whitespace-nowrap flex-shrink-0 bg-rose-600 rounded-full hover:bg-rose-200 duration-500 ease-in-out hover:-translate-y-0.5"
+                    >
+                        Send Selected
+                    </button>
+                </div>
             </div>
+            <script src="popup.js"></script>
         </div>
-        <script src="popup.js"></script>
     </body>
 </html>
