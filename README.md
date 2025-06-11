@@ -4,7 +4,7 @@
 
 ### Problem statement
 
-My father ownes an e-commerce business where he sells belts, belt buckles, and necklaces on Etsy, Amazon, and eBay. As a member of the younger generation, I saw an opportunity: **depop.com**.
+My father owns an e-commerce business where he sells belts, belt buckles, and necklaces on Etsy, Amazon, and eBay. As a member of the younger generation, I saw an opportunity: **depop.com**.
 
 This is a newer, less established platform marketed as an online thrift store where people sell their used items. I've been shopping on it for years now, and I noticed that my dad's choice of Western styles could score big on the platform. I introduced him to the opportunity, but he was reluctant to learn the ins and outs of this new website. To test the waters, he gave me some of his samples and defective items to sell. Seeing as depop is a more casual platform where people don't put a lot of effort into their listings, I put them up with terrible pictures for dirt cheap, and waited.
 
@@ -214,7 +214,7 @@ Now, the user sees the details collapsed and populated with the data that `backg
 >
 > -   On sending, the popup reads the now-populated HTML table, and the input field for any details about the order. It then creates a HTML table styled by vanilla CSS (I wish I could've used tailwind, but emails don't have any way to reference it, or, I couldn't find any) and sends the "send-email" message for each row of the table. It also updates the `shippedLinks` cache so that the user knows what links they've already shipped.
 
-### 5. Miscallaneous Population of Table Rows
+### 5. Miscellaneous Population of Table Rows
 
 > On `popup.html` loading, the script reads the `chrome.storage.local` caches and builds the table with any data that was stored. This is done so that the information is persistent when closing the popup window.
 >
@@ -237,7 +237,7 @@ I included a demo video below to better show what the functionality accomplishes
 >
 > 2. I would also like to figure out how to intercept the API call to obtain the shipping label. The constant tab switching is annoying to the user as their application focus always jumps to the opened URL.
 >
-> 3. Extensive testing needs to be conducted on different orders of various sizes and edge cases like separate orders from the same users to verify functionality. This, unfortunately cannot be tested until such an order actually comes in. For now, the application works.
+> 3. Extensive testing needs to be conducted on different orders of various sizes and edge cases like separate orders from the same users to verify functionality. This, unfortunately, cannot be tested until such an order actually comes in. For now, the application works.
 
 # Results
 
