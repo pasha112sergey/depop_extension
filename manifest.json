@@ -1,6 +1,6 @@
 {
-    "name": "Hello Extensions",
-    "description": "Base Level Extension",
+    "name": "Depop Extension",
+    "description": "Depop helper extension to automate the sending of order emails and shipping labels to my dad.",
     "version": "1.0",
     "manifest_version": 3,
     "action": {
