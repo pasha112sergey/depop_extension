@@ -1,14 +1,16 @@
+//popup.js
 let dataReceived = new Set();
 let links = [];
 let totalOrderInfo = {};
 let working = false;
+let shippedLinks = [];
 
 function saveData() {
-    const arrayToSave = Array.from(dataReceived);
     chrome.storage.local.set(
         {
             savedUsernames: links,
             lastResults: Array.from(dataReceived),
+            shippedLinks: Array.from(shippedLinks),
         },
         () => {
             console.log("Saved data/usernames to storage: ", dataReceived);
@@ -22,11 +24,15 @@ function clearTableBodies() {
 }
 
 function loadRows() {
-    if (dataReceived.size > 0) {
-        console.log("dataReceived: to be loaded: ", dataReceived);
-        clearTableBodies();
-        addTableRows(Array.from(dataReceived));
-    }
+    chrome.storage.local.get(
+        ["lastResults", "shippedLinks"],
+        ({ lastResults = [], shippedLinks: stored = [] }) => {
+            dataReceived = new Set(lastResults);
+            shippedLinks = stored; // now always an array
+            clearTableBodies();
+            addTableRows(Array.from(dataReceived));
+        }
+    );
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -45,6 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
             dataReceived = new Set(result.lastResults);
         }
 
+        // if (Array.isArray(result.shippedLinks)) {
+        //     console.log("//shippedLinks: ", result.//shippedLinks);
+        //     //shippedLinks = new Set(result.//shippedLinks);
+        // }
         loadRows();
     });
 
@@ -240,6 +250,8 @@ async function createRows(resp) {
                                 resp.label
                             }</div>
 
+                            <div class="hidden" id="link">${resp.link}</div>
+
                     </div>
               </details>
             </td>
@@ -249,6 +261,27 @@ async function createRows(resp) {
     // Append that <tbody> (with its <tr>) into the table
     table.appendChild(wrapper);
 
+    console.log(
+        "label for the current resp is: ",
+        resp.label,
+        "value of comparison: "
+        //shippedLinks.has(resp.link)
+    );
+
+    console.log(
+        "shippedLinks.includes(resp.link)",
+        shippedLinks.includes(resp.link)
+    );
+
+    if (shippedLinks.includes(resp.link)) {
+        wrapper.querySelector("tr").classList.remove("group");
+        wrapper
+            .querySelector(`#usernameCell`)
+            .classList.remove("bg-emerald-300");
+
+        wrapper.querySelector("#usernameCell").classList.add("bg-yellow-500");
+        console.log("changed color");
+    }
     // Fill in the “images” part under View Orders
     const newRow = wrapper.querySelector("tr");
     let count = 0;
@@ -364,10 +397,15 @@ sendEmailsBtn.addEventListener("click", () => {
             );
 
             const shippingLink = row.querySelector("#shippingLink").innerHTML;
-            console.log("shipping Link element: ", shippingLink);
+            console.log("shipping Link innerHTML: ", shippingLink);
             //log
             console.log("orders container: ", orderImagesAndSizes);
 
+            const link = row.querySelector("#link").innerHTML;
+            if (link) console.log("link in send email: ");
+            else console.log("no link found");
+            // console.log("link in shipped links? ", //shippedLinks.has(link));
+            // console.log("shippingLinks: ", Array.from(//shippedLinks));
             // loop through order entries
             for (let count = 0; count < 15; count++) {
                 const order = orderImagesAndSizes.querySelector(
@@ -406,6 +444,7 @@ sendEmailsBtn.addEventListener("click", () => {
                 username: username,
                 html: wrapperString,
                 shippingLink: shippingLink,
+                link: link,
             });
         }
     });
@@ -422,13 +461,23 @@ sendEmailsBtn.addEventListener("click", () => {
                 body: email.html,
                 shippingLink: email.shippingLink,
             },
-            (response) => {
-                if (response.error) {
-                    sendEmailsBtn.innerHTML = "Error occurred";
-                }
-                sendEmailsBtn.innerHTML = "Send Selected";
-                console.log("Email send response", response);
-            }
+            (response) => {}
         );
+
+        shippedLinks.push(email.link);
+        console.log("shipped Links after sending email: ", shippedLinks);
+        chrome.storage.local.set({ shippedLinks: shippedLinks }, () => {
+            console.log("Updated shipped flag in storage");
+        });
+        saveData();
+        //shippedLinks.add(email.link);
+        // chrome.storage.local.set({
+        //     //shippedLinks: Array.from(//shippedLinks),
+        // });
+        // console.log(a
+        //     "shipped links after sending the email:",
+        //     Array.from(//shippedLinks)
+        // );
+        sendEmailsBtn.innerHTML = "Send Selected";
     }
 });

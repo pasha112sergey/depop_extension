@@ -8260,7 +8260,6 @@ var require_background = __commonJS({
                     images: scrapeResult.images,
                     link,
                     label: scrapeResult.shippingLink
-                    // or rename to “shippingLink”
                   });
                 }
               }

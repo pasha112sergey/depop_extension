@@ -2,7 +2,6 @@ import * as parse5 from "parse5";
 
 console.log("parse5.parse is", typeof parse5.parse);
 let visitedUrls = [];
-
 console.log(
     "Manifest client ID:",
     chrome.runtime.getManifest().oauth2.client_id
@@ -378,7 +377,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                                 username: scrapeResult.username,
                                 images: scrapeResult.images,
                                 link,
-                                label: scrapeResult.shippingLink, // or rename to “shippingLink”
+                                label: scrapeResult.shippingLink,
                             });
                         }
                     }
