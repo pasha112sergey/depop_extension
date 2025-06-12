@@ -204,8 +204,8 @@ sizeField.innerHTML = `
 </div>
 `;
 ```
-
-Now, the user sees the details collapsed and populated with the data that `background.js` scraped.
+>
+>Now, the user sees the details collapsed and populated with the data that `background.js` scraped.
 
 ### 4. Handling Selected Items
 
