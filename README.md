@@ -4,13 +4,13 @@
 
 ### Problem statement
 
-My father owns an e-commerce business where he sells belts, belt buckles, and necklaces on Etsy, Amazon, and eBay. As a member of the younger generation, I saw an opportunity: **depop.com**.
+My father owns an e-commerce business where he sells belts, belt buckles, and necklaces on Etsy, Amazon, and eBay. As a member of the younger generation, I saw an opportunity to expand his business: **depop.com**.
 
 This is a newer, less established platform marketed as an online thrift store where people sell their used items. I've been shopping on it for years now, and I noticed that my dad's choice of Western styles could score big on the platform. I introduced him to the opportunity, but he was reluctant to learn the ins and outs of this new website. To test the waters, he gave me some of his samples and defective items to sell. Seeing as depop is a more casual platform where people don't put a lot of effort into their listings, I put them up with terrible pictures for dirt cheap, and waited.
 
-As I suspected, they sold almost instantly! I also discovered that depop's policy is extremely friendly towards sellers: low fees, and buyer pays shipping. This way, I could list the items for small prices, yet still keep a nice profit margin.
+As I suspected, they sold almost instantly! I also discovered that depop's policy is extremely friendly towards sellers: low fees, and buyer pays shipping. This way, I could list the items for low prices, yet still keep a nice profit margin.
 
-However, a problem quickly surfaced. With me being busy at Stony Brook with classes, activites, and the rest of college life, I had very little time to actually process orders. For each order, I had to get the shipping label, username, item, and manually send an email to my dad. Now this doesn't seem like much, but on especially good sales days, this took up to 30 minutes of monotonous, repetitive labor. Sure, time I had, but time I didn't want to spend.
+However, a problem quickly surfaced. With me being busy at Stony Brook with classes, activites, and the rest of college life, I had very little time to actually process orders. For each order, I had to get the shipping label, username, item, and manually send an email to my dad. Now this doesn't seem like much, but on especially good sales days, this took up to 30 minutes of monotonous, repetitive "labor". Sure, time I had, but time I didn't want to spend.
 
 ### Solution
 
@@ -22,13 +22,15 @@ This extension has a few moving parts.
 
 1. First, `manifest.json` declares the metadata about the browser extension, which allows the browser to understand, allow, and manage the application's behavior when installed.
 
-2. Second, `background.js`, together with `esbuild` bundler, creates a file `dist/background.bundle.js`, which controls the background service worker for the application. This is the script that runs independently of the web page and lives in its own content. As the name suggests, it runs in the background, even when the browser is not displaying the tab. This file and its logic are essential for traversing the tabs and scraping the necessary data that we will then use in the email.
+2. Second, `background.js`, together with `esbuild` bundler, creates a file `dist/background.bundle.js`, which controls the background service worker for the application. This is the script that runs independently of the web page. As the name suggests, it runs in the background, even when the browser is not displaying the tab. This file and its logic are essential for traversing the tabs and scraping the necessary data that we will then use in the email. It is also responsible for handling the Gmail API call.
 
-3. Third, `popup.js` handles the extension popup window, and all the logic concerning buttons, displaying the order table, and the rest. On different user actions, it sends messages to the **background service worker** via the `chrome.runtime.sendMessage`. It is through this protocol that the service worker and the user interact. The logic in this file also reads the runtime responses that the background sends, and dynamically builds HTML elements to display the scraped data.
+3. Third, `popup.js` handles the extension's popup window. It controls all the logic concerning button and displaying the table of orders. On different user actions, it sends messages to the **background service worker** via the `chrome.runtime.sendMessage`. It is through this protocol that the service worker and the user interact. The logic in this file also reads the runtime responses that the background sends, and dynamically builds HTML elements to display the scraped data.
 
-4. Lastly, `output.css` is the Tailwind styles file that makes the `popup.html` file nice and user-friendly. I tried to make the styles acceptable and nice to the eye, but did not put too much emphasis on crazy effects and animations.
+4. Lastly, `output.css` is the Tailwind styles file that makes the `popup.html` file nice and user-friendly. I tried to make the styles acceptable and nice to the eye, but did not put too much emphasis on any crazy effects and animations.
 
 > `/images` directory contains the icon that shows up in the extension bar, the background image for `popup.html`, and the trash icon to remove orders
+
+## A preview of the extension window
 
 <p align="center">
 <img src=image.png alt="popup preview" width="400">
@@ -40,16 +42,16 @@ This extension has a few moving parts.
 
 The background service worker has a few responsibilities:
 
-### 1. Sending email procedure via obtaining the OAuth2 Token and calling the Gmail API
+### 1. Sending the email via obtaining the OAuth2 Token and calling the Gmail API
 
-> 1. In order to send the email, the user selects the orders they'd like to send and then clicks the `Send Selected` button. `popup.js` then reads that click through a simple `eventListener`, scrapes the information from `popup.html`, and sends a `chrome.runtime` message to the backend with the type `"send-email"` for each selected order. Below is the exact schema of the message:
+> 1. In order to send the email, the user selects the orders they'd like to send and then clicks the **'Send Selected'** button. `popup.js` then reads that click through a simple `eventListener`, scrapes the information from `popup.html`, and sends a `chrome.runtime` message to the backend with the type `"send-email"` for each selected order. Below is the schema of the message:
 >    <br></br>
 >    | Message Field | Description | Example |
 >    | :--- | :---- | :--- |
->    | `message.type` | Tells the service worker to send the email | `"send-email"` |
+>    | `message.type` | Tells the service worker that the user wants to send the email | `"send-email"` |
 >    | `message.to` | Selects the recipient (dad's email, mine for testing) | `"test@gmail.com"` |
->    | `message.subject` | Email subject, includes username | `"depop-@user_joe"` |
->    | `message.body` | HTML table for each item of the user's order. This is stored in an object called "email", under the "html" field. More on this in the `popup.js` section | `"email.html"` |
+>    | `message.subject` | Email subject. This includes username | `"depop-@example_user"` |
+>    | `message.body` | This is the HTML table for each item of the user's order. This is stored in an object called "email", under the "html" field. More on this in the `popup.js` section | `"email.html"` |
 >    | `message.shippingLink` | The link to the shipping label | `"https://deliver.goshippo..."` |
 >
 > <br></br>
@@ -69,23 +71,22 @@ sendGmailMultipart({
 });
 ```
 
-> 3.  This function then gets the Gmail OAuth2 token, builds the message, and calls the Gmail API. Then, the callback to `sendGmailMultipart` decides whether the response to send to `popup.js` is a success or an error. It also updates the `shippedLinks` array in `chrome.storage.local` to keep track of what orders the user has already shipped.
+> 3.  The `sendGmailMultipart` function then gets the Gmail OAuth2 token, builds the message, and calls the Gmail API. Then, the callback to `sendGmailMultipart` decides whether the response to send to `popup.js` is a success or an error. It also updates the `shippedLinks` array in `chrome.storage.local` to keep track of what orders the user has already shipped.
+>
 > 4.  If everything was successful, the email has been sent and the order will be marked as shipped by highlighting in yellow in `popup.html`.
 
-<br></br>
-
-### 2. Scraping the data from Depop's _selling hub_ page to obtain important order information.
+### 2. Scraping the data from Depop's _selling hub_ page to obtain necessary order information.
 
 > This is the biggest part of the application, and is the central logic that allows the whole app to work.
 >
 > Again, this responsibility is invoked by a message from `popup.js`. On click of the 'Get orders' button, `popup.js` sends a message of type `"get-data"`. Background's message listener picks it up and executes the request as follows.
 >
-> 1. Since the background lives in an independent context, we must inject a script into the depop _sellinghub_ webpage via `chrome.scripting.executeScript` on the current tab's ID.
-
-> 2. Now that we have an injected script, we can read the page and its content using various selectors. Helper functions like `getInfo` and `testValidDate` make sure the receipts links we are selecting are valid by testing its status text. This text must contain 'Ship Order' to continue.
-
+> 1. Since the background lives in an independent context, we must inject a script into the depop _selling hub_ webpage via `chrome.scripting.executeScript` on the current tab's ID.
+>
+> 2. Now that we have an injected script, we can read the page and its content using various selectors. Helper functions like `getInfo` and `testValidDate` make sure the receipts links we are selecting are valid by testing its status text. For instance, the text must contain the 'Ship Order' text to continue.
+>
 > 3. After that, we follow the receipt link by calling `navigateToUrl`, which opens up **Depop's order details page**. On this page, we get all of the important data that we need for the order by calling `scrapeDataFromDom`. Through various selectors, this function extracts the images of items in the order, the username, the total, and gets the shipping label.
->    <br></br> > **_NOTE:_** _Clicking the 'Get Shipping Label' button calls depop's internal API to fetch a shipping label link from a service called goshippo. I was not able to intercept this call because ManifestV3 does not allow blocking webRequests. Instead, I opted for clicking the button via the injected script and listening for a page redirect. Then, I grabbed the URL from that newly opened page and closed it quickly. Please let me know if you have any suggestions on using the API instead, as that will make the user experience smoother._
+>     > **_NOTE:_** _Clicking the 'Get Shipping Label' button calls depop's internal API to fetch a shipping label link from a service called goshippo. I was not able to intercept this call because ManifestV3 does not allow blocking webRequests. Instead, I opted for clicking the button via the injected script and listening for a page redirect. Then, I grabbed the URL from that newly opened page and closed it quickly. Please let me know if you have any suggestions on using the API instead, as that will make the user experience smoother._
 
 > 4.  After reading the page content and getting the shipping label, we update the stored orders in `chrome.storage.local` and send the response via an array, which I uncreatively called resultsArray. Each element of this array is a JavaScript object that contains the following fields:
 >
@@ -103,7 +104,7 @@ sendGmailMultipart({
 
 ## In-depth overview of how it works: `popup.js`
 
-Popup.js handles everything related to the UI and serves as the interface between the backend and frontend.
+`popup.js` handles everything related to the UI and serves as the interface between the backend and frontend.
 
 ### 1. Setting up listeners for the buttons that the user interacts with
 
@@ -120,14 +121,14 @@ selectAllBtn.addEventListener("click", () => {
 ### 2. Sending messages on eventListener calls
 
 > There are only 3 types of messages to send:
+>
+> | Message Type   | Description                                                                                                                                                                                                                                                                                                                                           |                                                                                                                   Usage |
+> | :------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------: |
+> | `"get-data"`   | Tells the service worker to scrape the data from the **selling hub** webpage                                                                                                                                                                                                                                                                          |                                          A "get-data" message is sent whenever the user clicks the "Get Orders" button. |
+> | `"clear"`      | Sends a link of the item to remove from the `chrome.storage.local` cache and background's internal cache that keeps track of the links it has already seen. Perhaps this is an unnecessary message to send, as the `chrome.storage.local` cache can be updated from any file, but it gave me some extra practice with message passing, I guess (lol). |        A "clear" message is sent whenever a user clicks the "Clear selected" or the individual table row trash can icon |
+> | `"send-email"` | As explained in the in-depth overview of `background.js`, this passes the fields for the background to send emails to. Again, this also could've been handled in `popup.js`, but it seemed sensical to delegate this to the backend of the application at the time of development.                                                                    | A "send-email" message is sent whenever the user selects the orders to ship, and then clicks the "Send Selected" button |
 
-> | Message Type   | Description                                                                                                                                                                                                                                                                                                                                        |                                                                                                                   Usage |
-> | :------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------: |
-> | `"get-data"`   | Tells the service worker to scrape the data from the **selling hub** webpage                                                                                                                                                                                                                                                                       |                                          A "get-data" message is sent whenever the user clicks the "Get Orders" button. |
-> | `"clear"`      | Sends a link of the item to remove from the `chrome.storage.local` cache and background's internal cache that keeps track of the links it has already seen. Perhaps this is an unnecessary message to send, as the `chrome.storage.local` cache can be updated from any file, but it gave me some extra practice with message passing, I guess lol. |         A "clear" message is sent whenever a user clicks the "Clear selected" or the individual table row trash can icon |
-> | `"send-email"` | As explained in the in-depth overview of `background.js`, this passes the fields for the background to send emails to. Again, this also could've been handled in `popup.js`, but it seemed sensical to delegate this to the backend of the application at the time of development.                                                                 | A "send-email" message is sent whenever the user selects the orders to ship, and then clicks the "Send Selected" button |
-
-### 3. Injecting table rows on `background.js` _"get-data"_ message
+### 3. Injecting table rows on `background.js` _"get-data"_ response
 
 > After sending the _"get-data"_ message, `popup.js` reads the `resultsArray` elements, and injects table rows one by one. It first injects a skeleton for each element `resp`, which is referenced by a wrapper element:
 
@@ -208,11 +209,11 @@ Now, the user sees the details collapsed and populated with the data that `backg
 
 ### 4. Handling Selected Items
 
-> There are 2 things that the user can do with selected items: they can either delete them or send them.
+> There are 2 things that the user can do with selected items: they can either delete them in bulk or send them.
 >
-> -   On deleting, each item's link is sent to the background with the "clear" type.
+> -   On deleting, each item's link is sent to the background with the "clear" message type.
 >
-> -   On sending, the popup reads the now-populated HTML table, and the input field for any details about the order. It then creates an HTML table styled by vanilla CSS (I wish I could've used tailwind, but emails don't have any way to reference it, or I couldn't find any) and sends the "send-email" message for each row of the table. It also updates the `shippedLinks` cache so that the user knows what links they've already shipped.
+> -   On sending, the popup reads the now-populated HTML table, and the input field for any details about the order. It then creates an HTML table styled by vanilla CSS (I wish I could've used tailwind, but emails don't have any way to reference it, or, I should say, I couldn't find any) and sends the "send-email" message for each row of the table. It also updates the `shippedLinks` cache so that the user knows what links they've already shipped.
 
 ### 5. Miscellaneous Population of Table Rows
 
