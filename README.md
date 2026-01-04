@@ -235,4 +235,4 @@ I included a demo video in the `./demo_video` folder to better show what the fun
 
 # Results
 
-> Currently, the application is working and has already successfully sent over 15 emails to my dad. The total process of all shipping orders now takes around 2 minutes, while before, it took around 2 minutes for each order. This is a massive improvement and I'm very happy with the result!
+> Currently, the application is working and has already successfully sent over **1000** emails to my dad. The total process of all shipping orders now takes around 2 minutes, while before, it took around 2 minutes for each order. This is a massive improvement and I'm very happy with the result!
