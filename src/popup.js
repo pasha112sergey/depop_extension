@@ -207,7 +207,7 @@ async function addTableRows(responseIterable) {
             });
         });
 
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // await new Promise((resolve) => setTimeout(resolve, 100));
     }
 }
 
@@ -251,7 +251,7 @@ async function createRows(resp) {
                             }</div>
 
                             <div class="hidden" id="link">${resp.link}</div>
-
+                            <div class="hidden" id="total">${resp.total}</div>
                     </div>
               </details>
             </td>
@@ -373,6 +373,92 @@ selectAllBtn.addEventListener("click", () => {
     }
 });
 
+const updateSheetBtn = document.getElementById("updateSheet");
+updateSheetBtn.addEventListener("click", () => {
+    const checkboxes = table.querySelectorAll('input[type="checkbox"]');
+
+    const rows = [];
+    checkboxes.forEach((cb) => {
+        if (cb.checked) {
+            // create table element
+            const wrapperTable = document.createElement("table");
+            const wrapperBody = document.createElement("tbody");
+            wrapperTable.appendChild(wrapperBody);
+
+            const row = cb.closest("tbody");
+
+            // grab username and orders container
+            const username = row.querySelector("#usernameCell").innerHTML;
+            console.log("username in create Email: ", username);
+            const orderImagesAndSizes = row.querySelector(
+                `#images-${username.slice(1)}`
+            );
+
+            const shippingLink = row.querySelector("#shippingLink").innerHTML;
+            console.log("shipping Link innerHTML: ", shippingLink);
+            //log
+            console.log("orders container: ", orderImagesAndSizes);
+
+            const link = row.querySelector("#link").innerHTML;
+            if (link) console.log("link in update sheet: ");
+            else console.log("no link found");
+            // console.log("link in shipped links? ", //shippedLinks.has(link));
+            // console.log("shippingLinks: ", Array.from(//shippedLinks));
+            // loop through order entries
+
+            const total = row.querySelector("#total");
+            console.log("total element on 410: ", total);
+
+            const images = [];
+            for (let count = 0; count < 15; count++) {
+                const order = orderImagesAndSizes.querySelector(
+                    `#image-${count}`
+                );
+                console.log(`order: #image-${count} is ${order}`);
+                if (order) {
+                    // Grab the first <img> and the input value
+                    const img = order.querySelector("img");
+                    // const size = order.querySelector("input")?.value || "";
+                    images.push(img.src);
+                } else {
+                    break;
+                }
+            }
+            rows.push({
+                username: username,
+                images: images,
+                shippingLink: shippingLink,
+                link: link,
+                total: total.innerHTML,
+            });
+        }
+    });
+
+    const rowsToSend = [];
+    for (let row of rows) {
+        const sheetRow = [
+            new Date().toDateString(),
+            row.images.map((url) => `=IMAGE("${url}", 4, 100, 100)`).join(" "),
+            row.username,
+            "sent",
+            row.total,
+        ];
+        console.log("row to send: ", sheetRow);
+        rowsToSend.push(sheetRow);
+    }
+    chrome.runtime.sendMessage(
+        {
+            type: "update-sheet",
+            rowsToSend: rowsToSend,
+        },
+        (response) => {
+            console.log("response: ", response);
+        }
+    );
+    // TODO: build response architecture and be done
+});
+
+//
 const sendEmailsBtn = document.getElementById("sendEmails");
 sendEmailsBtn.addEventListener("click", () => {
     console.log("clicked send emails");
@@ -456,7 +542,7 @@ sendEmailsBtn.addEventListener("click", () => {
         chrome.runtime.sendMessage(
             {
                 type: "send-email",
-                to: "safronov1112@gmail.com",
+                to: "pasha112sergey@gmail.com",
                 subject: `depop-${email.username}`,
                 body: email.html,
                 shippingLink: email.shippingLink,

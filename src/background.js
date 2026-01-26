@@ -16,7 +16,7 @@ function base64UrlEncode(str) {
 }
 
 // Fetch an OAuth2 token for Gmail
-function getGmailToken(interactive = true) {
+function getGoogleToken(interactive = true) {
     return new Promise((resolve, reject) => {
         chrome.identity.getAuthToken({ interactive }, (token) => {
             if (chrome.runtime.lastError || !token) {
@@ -30,7 +30,7 @@ function getGmailToken(interactive = true) {
 }
 
 async function sendGmailMultipart({ to, subject, htmlBody }) {
-    const token = await getGmailToken(true);
+    const token = await getGoogleToken(true);
 
     // const pdfBase64 = await fetchPdfBase64InPage(tabId, textBody);
 
@@ -63,6 +63,31 @@ async function sendGmailMultipart({ to, subject, htmlBody }) {
         throw new Error(`Gmail API error: ${err.error.message}`);
     }
     return res.json();
+}
+
+const SPREADSHEET_ID = "1wPlW6T3W8e8yXjhIai0Dc3orIW1f9hOWm7Zb4bPn4JA";
+
+async function appendRow(values) {
+    const token = await getGoogleToken(true);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED`;
+
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            values: [values],
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Sheets API error: ${error.error.message}`);
+    }
+
+    return response.json();
 }
 
 async function waitForSelector(tabId, selector, timeoutMs = 10000) {
@@ -219,12 +244,32 @@ async function scrapeDataFromDom(tabId) {
             });
             const user = usernames[0];
 
+            const totalContainer = document.querySelector(
+                ".styles_container__NdYm1"
+            );
+
+            const totals = Array.from(
+                totalContainer.querySelectorAll(
+                    "p._text_bevez_41._shared_bevez_6._normal_bevez_51"
+                )
+            )
+                .filter((text) => {
+                    if (text.textContent.includes("sent to your bank account"))
+                        return true;
+                    else return false;
+                })
+                .map((text) => {
+                    return text.innerHTML;
+                });
+            console.log("totals: ", totals[0].split(" ")[0].slice(3));
+            const total = totals[0].split(" ")[0].slice(3);
             // // get the shipping label button
             // const getLabelBtn = document.querySelector(
             //     "button.styles_buttonMinimal__iE3by.styles_downloadLabelButton__i3Wza.styles_downloadLabelButton--label__3i_n0.styles_button__q2hA8"
             // );
 
             let ret = {
+                total: total,
                 username: user,
                 images: images,
                 shippingLink: null,
@@ -372,11 +417,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                             //         }
                             //     }
                             // );
+                            // const rowData = [
+                            //     new Date().toDateString(),
+                            //     scrapeResult.images.map(url => `=IMAGE("${url})")`).join(" ")
+                            //     scrapeResult.username,
+                            //     scrapeResult.total,
+                            // ];
+
+                            // console.log("rowData: ", rowData);
+
+                            // try {
+                            //     await appendRow(rowData);
+                            //     console.log("Appended to Sheets");
+                            // } catch (sheetsError) {
+                            //     console.error(
+                            //         "Sheets append failed:",
+                            //         sheetsError
+                            //     );
+                            // }
 
                             resultsArray.push({
                                 username: scrapeResult.username,
                                 images: scrapeResult.images,
                                 link,
+                                total: scrapeResult.total,
                                 label: scrapeResult.shippingLink,
                             });
                         }
@@ -476,6 +540,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 });
             return true;
         });
+    }
+
+    if (message.type === "update-sheet") {
+        (async () => {
+            const rows = message.rowsToSend;
+
+            for (let rowData of rows) {
+                try {
+                    await appendRow(rowData);
+                } catch (sheetsError) {
+                    sendResponse({ success: false, error: sheetsError });
+                    return false;
+                }
+            }
+            console.log("Appended to Sheets");
+            sendResponse({ success: true });
+            return true;
+        })();
     }
     return true;
 });
