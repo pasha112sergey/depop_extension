@@ -7989,7 +7989,7 @@ var require_background = __commonJS({
     function base64UrlEncode(str) {
       return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
     }
-    function getGmailToken(interactive = true) {
+    function getGoogleToken(interactive = true) {
       return new Promise((resolve, reject) => {
         chrome.identity.getAuthToken({ interactive }, (token) => {
           if (chrome.runtime.lastError || !token) {
@@ -8002,7 +8002,7 @@ var require_background = __commonJS({
       });
     }
     async function sendGmailMultipart({ to, subject, htmlBody }) {
-      const token = await getGmailToken(true);
+      const token = await getGoogleToken(true);
       const messageLines = [
         `To: ${to}`,
         `Subject: ${subject}`,
@@ -8028,6 +8028,26 @@ var require_background = __commonJS({
         throw new Error(`Gmail API error: ${err.error.message}`);
       }
       return res.json();
+    }
+    var SPREADSHEET_ID = "1wPlW6T3W8e8yXjhIai0Dc3orIW1f9hOWm7Zb4bPn4JA";
+    async function appendRow(values) {
+      const token = await getGoogleToken(true);
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          values: [values]
+        })
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Sheets API error: ${error.error.message}`);
+      }
+      return response.json();
     }
     async function waitForSelector(tabId, selector, timeoutMs = 1e4) {
       const start = Date.now();
@@ -8158,7 +8178,24 @@ var require_background = __commonJS({
             return element.getAttribute("src");
           });
           const user = usernames[0];
+          const totalContainer = document.querySelector(
+            ".styles_container__NdYm1"
+          );
+          const totals = Array.from(
+            totalContainer.querySelectorAll(
+              "p._text_bevez_41._shared_bevez_6._normal_bevez_51"
+            )
+          ).filter((text) => {
+            if (text.textContent.includes("sent to your bank account"))
+              return true;
+            else return false;
+          }).map((text) => {
+            return text.innerHTML;
+          });
+          console.log("totals: ", totals[0].split(" ")[0].slice(3));
+          const total = totals[0].split(" ")[0].slice(3);
           let ret2 = {
+            total,
             username: user,
             images,
             shippingLink: null
@@ -8259,6 +8296,7 @@ var require_background = __commonJS({
                     username: scrapeResult.username,
                     images: scrapeResult.images,
                     link,
+                    total: scrapeResult.total,
                     label: scrapeResult.shippingLink
                   });
                 }
@@ -8343,6 +8381,22 @@ var require_background = __commonJS({
           });
           return true;
         });
+      }
+      if (message.type === "update-sheet") {
+        (async () => {
+          const rows = message.rowsToSend;
+          for (let rowData of rows) {
+            try {
+              await appendRow(rowData);
+            } catch (sheetsError) {
+              sendResponse({ success: false, error: sheetsError });
+              return false;
+            }
+          }
+          console.log("Appended to Sheets");
+          sendResponse({ success: true });
+          return true;
+        })();
       }
       return true;
     });
