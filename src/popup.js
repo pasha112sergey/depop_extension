@@ -456,7 +456,7 @@ sendEmailsBtn.addEventListener("click", () => {
         chrome.runtime.sendMessage(
             {
                 type: "send-email",
-                to: "safronov1112@gmail.com",
+                to: "INSERT_ADDRESS_HERE",
                 subject: `depop-${email.username}`,
                 body: email.html,
                 shippingLink: email.shippingLink,
