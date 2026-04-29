@@ -1,6 +1,11 @@
 import ChromeMessageType from "./messageTypes";
 import Order from "../models/Order";
 
+enum Color {
+    SUCCESS = "lightBlue",
+    FAILURE = "red",
+}
+
 const visitedUrls: string[] = [];
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -32,6 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const tabId: number = tab.id;
 
                 let injectionResult: chrome.scripting.InjectionResult<string[]>;
+
                 try {
                     [injectionResult] = await chrome.scripting.executeScript({
                         target: { tabId },
@@ -43,6 +49,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     });
                     return;
                 }
+
                 console.log("injectionResult:", injectionResult);
                 const receiptLinks = injectionResult.result;
 
@@ -52,7 +59,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
 
                 const orderArray: Order[] = [];
-                for (const rLink of receiptLinks) {
+                const processed: Map<string, boolean> = new Map();
+
+                for (let i = 0; i < 1; i++) {
+                    const rLink = receiptLinks[i];
                     try {
                         await navigateToUrl(tabId, rLink);
 
@@ -72,14 +82,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                             await scrapeDataFromDom(tabId);
                         scrapedOrder.url = rLink;
 
-                        if (scrapedOrder.error) {
+                        if (
+                            !scrapedOrder.error &&
+                            scrapedOrder.shippingLink !== "error"
+                        ) {
                             orderArray.push(scrapedOrder);
-                            continue;
-                        } else if (scrapedOrder.shippingLink !== "error") {
-                            orderArray.push(scrapedOrder);
+                            processed.set(rLink, true);
+                        } else {
+                            throw new Error(
+                                scrapedOrder.error ??
+                                    "unknown order error on line 84",
+                            );
                         }
                     } catch (error: any) {
                         orderArray.push(errorOrder(error));
+                        processed.set(rLink, false);
                     }
                 }
 
@@ -96,11 +113,72 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 });
 
                 // Result is read by the popup via chrome.storage.onChanged
+
+                try {
+                    const processedLinks = receiptLinks.filter((l) =>
+                        processed.get(l),
+                    );
+                    await chrome.scripting.executeScript({
+                        target: { tabId },
+                        func: (links: string[], successLinks: string[]) => {
+                            // sets the color of the link
+                            function setColor(link: string, color: string) {
+                                const el = document.querySelector(
+                                    `li:has(a[href="${link}"])`,
+                                ) as HTMLLIElement;
+
+                                if (el) {
+                                    el.style.backgroundColor = color;
+                                    console.log("background set!");
+                                }
+                            }
+
+                            for (const rLink of links) {
+                                if (successLinks.includes(rLink)) {
+                                    console.log(`link ${rLink} is processed`);
+                                    setColor(rLink, Color.SUCCESS);
+                                } else {
+                                    setColor(rLink, Color.FAILURE);
+                                }
+                            }
+                            return true;
+                        },
+                        args: [receiptLinks, processedLinks],
+                    });
+                } catch (e: any) {
+                    console.log(`Error! ${e.message}`);
+                    sendResponse({ ok: false });
+                }
+
                 sendResponse({ ok: true });
             })();
+
             return true;
     }
 });
+
+/**
+ * Sets the link element's background color
+ * @param {string} link : string of the link
+ * @param {Color} color : color to set the background color to
+ * @returns {void}
+ * @throws {Error}
+ */
+function setLinkContainerColor(link: string, color: Color): void {
+    const linkEle: HTMLAnchorElement | null = document.querySelector(
+        `a[href="${link}"]`,
+    ) as HTMLAnchorElement;
+
+    console.log(linkEle);
+
+    if (!linkEle) {
+        console.log("linkEle not found");
+        throw new Error("HTML element corresponding to link not found!");
+    } else {
+        linkEle.style!.backgroundColor = `${color}`;
+        console.log("linkEle style set!");
+    }
+}
 
 /**
  * @returns string[] Returns the links of each receipt element
@@ -120,6 +198,7 @@ function getLinks(): string[] {
         });
         return val;
     });
+
     console.log("receiptElemnts: ", receiptElements);
 
     // map receipts to their href attribute
