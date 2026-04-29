@@ -2,8 +2,8 @@ import ChromeMessageType from "./messageTypes";
 import Order from "../models/Order";
 
 enum Color {
-    SUCCESS = "lightBlue",
-    FAILURE = "red",
+    SUCCESS = "#4aedae",
+    FAILURE = "#d13b3b",
 }
 
 const visitedUrls: string[] = [];
@@ -123,20 +123,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         func: (links: string[], successLinks: string[]) => {
                             // sets the color of the link
                             function setColor(link: string, color: string) {
-                                const el = document.querySelector(
-                                    `li:has(a[href="${link}"])`,
-                                ) as HTMLLIElement;
+                                const parents = Array.from(
+                                    document.querySelectorAll("a"),
+                                )
+                                    .filter((a) => a.href == link)
+                                    .map(
+                                        (ele) =>
+                                            ele.parentNode as HTMLDivElement,
+                                    );
 
-                                if (el) {
-                                    el.style.backgroundColor = color;
-                                    console.log("background set!");
+                                console.log("parents selected: ", parents);
+                                const parent = parents.find((p) => {
+                                    console.log("p testing: ", p);
+                                    return (
+                                        p.className == "styles_wrapper__JTFc9"
+                                    );
+                                });
+
+                                console.log("parent", parent);
+                                if (parent) {
+                                    parent.style.backgroundColor = color;
                                 }
+                                return parent;
                             }
 
                             for (const rLink of links) {
                                 if (successLinks.includes(rLink)) {
-                                    console.log(`link ${rLink} is processed`);
-                                    setColor(rLink, Color.SUCCESS);
+                                    const el = setColor(rLink, Color.SUCCESS);
+                                    console.log(`link is processed`);
+                                    console.log(el);
                                 } else {
                                     setColor(rLink, Color.FAILURE);
                                 }
