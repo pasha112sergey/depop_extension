@@ -114,10 +114,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 // Result is read by the popup via chrome.storage.onChanged
 
+                // color dom
                 try {
                     const processedLinks = receiptLinks.filter((l) =>
                         processed.get(l),
                     );
+
                     await chrome.scripting.executeScript({
                         target: { tabId },
                         func: (links: string[], successLinks: string[]) => {

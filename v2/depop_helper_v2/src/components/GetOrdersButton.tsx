@@ -1,4 +1,5 @@
 import ChromeMessageType from "../scripts/messageTypes";
+import Order from "../models/Order";
 
 type Props = { setOrders: Function };
 
@@ -29,12 +30,24 @@ function getOrders(setOrders: Function) {
 
         chrome.storage.onChanged.removeListener(onStorageChanged);
 
-        const orders = changes.lastResults.newValue;
+        const rawOrders = changes.lastResults.newValue;
 
-        if (!Array.isArray(orders)) {
+        if (!Array.isArray(rawOrders)) {
             printError("empty response in getOrders");
             return;
         }
+
+        const orders: Order[] = rawOrders.map(
+            (o: any) =>
+                new Order(
+                    o._url,
+                    o._images,
+                    o._username,
+                    o._total,
+                    o._shippingLink,
+                    o._error,
+                ),
+        );
 
         for (const order of orders) {
             if (order.error != null) {
@@ -43,6 +56,7 @@ function getOrders(setOrders: Function) {
         }
 
         setOrders(orders);
+        console.log("orders set: ", orders);
     }
 
     chrome.storage.onChanged.addListener(onStorageChanged);

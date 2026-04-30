@@ -13,4 +13,5 @@ export default defineConfig({
     css: {
         devSourcemap: true,
     },
+    mode: "development",
 });
