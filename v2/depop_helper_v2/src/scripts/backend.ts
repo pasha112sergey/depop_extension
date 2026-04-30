@@ -61,7 +61,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const orderArray: Order[] = [];
                 const processed: Map<string, boolean> = new Map();
 
-                for (let i = 0; i < 1; i++) {
+                const loopCondition: number = receiptLinks.length; // debug to reduce the numebr of shipping label loads allowed
+                for (let i = 0; i < loopCondition; i++) {
                     const rLink = receiptLinks[i];
                     try {
                         await navigateToUrl(tabId, rLink);

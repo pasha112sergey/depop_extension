@@ -6,6 +6,7 @@ import GetOrdersButton from "./components/GetOrdersButton";
 import SendOrdersButton from "./components/SendOrdersButton";
 import SpreadsheetButton from "./components/Spreadsheet";
 import SelectAllButton from "./components/SelectAllButton";
+import ClearCacheButton from "./components/ClearCacheButton";
 
 function App() {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -33,6 +34,7 @@ function App() {
             <div className="main">
                 <h2 className="main-heading">Select usernames to ship</h2>
                 <h3 id="quantity">Quantity: {orders.length}</h3>
+                <ClearCacheButton></ClearCacheButton>
                 <OrderTable orders={orders}></OrderTable>
                 <div className="buttons">
                     <GetOrdersButton setOrders={setOrders}></GetOrdersButton>
