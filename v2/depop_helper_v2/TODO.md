@@ -15,3 +15,5 @@
 [ ] - detection of belts: send everything else
 
 [ ] - smart send - (send all standard orders, without comments)
+
+[ ] - Find out what packing is and make sure that the extension is persistent
