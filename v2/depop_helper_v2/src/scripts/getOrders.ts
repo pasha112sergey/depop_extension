@@ -13,10 +13,7 @@ import Order from "../models/Order";
  * @param sender who the message request was (always popup.js)
  * @param sendResponse
  */
-export default function getOrders(
-    sender: chrome.runtime.MessageSender,
-    sendResponse: Function,
-) {
+export default function getOrders(sender: chrome.runtime.MessageSender, sendResponse: Function) {
     void sender;
     (async () => {
         console.log("GET_ORDERS received in service worker");
@@ -24,8 +21,6 @@ export default function getOrders(
             active: true,
             lastFocusedWindow: true,
         });
-
-        console.log("active tab:", tab);
 
         if (!tab?.id) {
             sendResponse({ error: "No Active Tab" });
@@ -40,9 +35,7 @@ export default function getOrders(
         }
 
         const tabId: number = tab.id;
-
         let injectionResult: chrome.scripting.InjectionResult<string[]>;
-
         try {
             [injectionResult] = await chrome.scripting.executeScript({
                 target: { tabId },
@@ -55,7 +48,6 @@ export default function getOrders(
             return;
         }
 
-        console.log("injectionResult:", injectionResult);
         const receiptLinks = injectionResult.result;
 
         if (!Array.isArray(receiptLinks) || receiptLinks.length === 0) {
@@ -66,9 +58,21 @@ export default function getOrders(
         const orderArray: Order[] = [];
         const processed: Map<string, boolean> = new Map();
 
-        const loopCondition: number = receiptLinks.length; // debug to reduce the numebr of shipping label loads allowed
+        // load existing stored orders and collect their URLs to skip
+        const stored = await chrome.storage.local.get(["lastResults"]);
+        const existingOrders: any[] = Array.isArray(stored.lastResults) ? stored.lastResults : [];
+        const existingUrls = new Set<string>(existingOrders.map((e: any) => e._url));
+
+        // debug to reduce the number of shipping label loads allowed
+        // const loopCondition: number = receiptLinks.length;
+        const loopCondition: number = 2;
         for (let i = 0; i < loopCondition; i++) {
             const rLink = receiptLinks[i];
+            if (existingUrls.has(rLink)) {
+                console.log("skipping already stored link:", rLink);
+                continue;
+            }
+
             try {
                 await navigateToUrl(tabId, rLink);
 
@@ -87,16 +91,11 @@ export default function getOrders(
                 const scrapedOrder: Order = await scrapeDataFromDom(tabId);
                 scrapedOrder.url = rLink;
 
-                if (
-                    !scrapedOrder.error &&
-                    scrapedOrder.shippingLink !== "error"
-                ) {
+                if (!scrapedOrder.error && scrapedOrder.shippingLink !== "error") {
                     orderArray.push(scrapedOrder);
                     processed.set(rLink, true);
                 } else {
-                    throw new Error(
-                        scrapedOrder.error ?? "unknown order error on line 84",
-                    );
+                    throw new Error(scrapedOrder.error ?? "unknown order error on line 84");
                 }
             } catch (error: any) {
                 orderArray.push(errorOrder(error));
@@ -109,9 +108,7 @@ export default function getOrders(
         // here should add color to the links that were picked!
         console.log("orderArray: ", orderArray);
 
-        chrome.storage.local.set({
-            lastResults: orderArray,
-        });
+        chrome.storage.local.set({ lastResults: [...existingOrders, ...orderArray] });
 
         // Result is read by the popup via chrome.storage.onChanged
 
@@ -124,9 +121,7 @@ export default function getOrders(
                 func: (links: string[], successLinks: string[]) => {
                     // sets the color of the link
                     function setColor(link: string, color: string) {
-                        const parents = Array.from(
-                            document.querySelectorAll("a"),
-                        )
+                        const parents = Array.from(document.querySelectorAll("a"))
                             .filter((a) => a.href == link)
                             .map((ele) => ele.parentNode as HTMLDivElement);
 

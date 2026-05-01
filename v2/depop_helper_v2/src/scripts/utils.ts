@@ -12,6 +12,10 @@ export enum Color {
 
 const visitedUrls: string[] = [];
 
+export function clearVisitedUrls() {
+    visitedUrls.length = 0;
+}
+
 /**
  * Sets the link element's background color
  * @param {string} link : string of the link
@@ -42,9 +46,7 @@ export function getLinks(): string[] {
     console.log("getting links...");
 
     // collect receipt elements
-    let receipts = Array.from(
-        document.getElementsByClassName("styles_receiptsListWrapper__bdK1V"),
-    );
+    let receipts = Array.from(document.getElementsByClassName("styles_receiptsListWrapper__bdK1V"));
 
     // filter by valid receipt elements
     const receiptElements = receipts.filter((r) => {
@@ -59,9 +61,7 @@ export function getLinks(): string[] {
     // map receipts to their href attribute
     const refs: string[] = receiptElements
         .map((ele) => {
-            const aElement = ele.querySelector(
-                '[aria-label*="View receipt"]',
-            ) as HTMLAnchorElement;
+            const aElement = ele.querySelector('[aria-label*="View receipt"]') as HTMLAnchorElement;
 
             return aElement ? aElement.href : null;
         })
@@ -77,11 +77,7 @@ export function getLinks(): string[] {
  * @param timeoutMs max timeout, default = 10 sec
  * @returns
  */
-export async function waitForSelector(
-    tabId: number,
-    selector: string,
-    timeoutMs: number = 10000,
-) {
+export async function waitForSelector(tabId: number, selector: string, timeoutMs: number = 10000) {
     console.log(selector);
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
@@ -117,12 +113,6 @@ export async function navigateToUrl(
 ): Promise<void> {
     console.log("in navigate");
 
-    if (visitedUrls.includes(url)) {
-        return Promise.resolve();
-    }
-
-    visitedUrls.push(url);
-
     return new Promise((resolve, reject) => {
         let timeoutHandle: number = 0;
 
@@ -137,13 +127,11 @@ export async function navigateToUrl(
 
         chrome.tabs.onUpdated.addListener(onUpdatedListener);
 
-        chrome.tabs
-            .update(tabId, { url, active: false })
-            .catch((error: any) => {
-                chrome.tabs.onUpdated.removeListener(onUpdatedListener);
-                clearTimeout(timeoutHandle);
-                reject(new Error(`tabs.update failed, ${error.message}`));
-            });
+        chrome.tabs.update(tabId, { url, active: false }).catch((error: any) => {
+            chrome.tabs.onUpdated.removeListener(onUpdatedListener);
+            clearTimeout(timeoutHandle);
+            reject(new Error(`tabs.update failed, ${error.message}`));
+        });
 
         timeoutHandle = setTimeout(() => {
             console.log("timeout!");
@@ -194,18 +182,14 @@ export async function scrapeDataFromDom(tabId: number): Promise<Order> {
             );
 
             const user: string = Array.from(p_tags)
-                .filter((ele) =>
-                    (ele as HTMLParagraphElement)?.innerText?.includes("@"),
-                )
+                .filter((ele) => (ele as HTMLParagraphElement)?.innerText?.includes("@"))
                 .map((user) => {
                     return (user as HTMLElement)?.innerText;
                 })[0];
 
             console.log(user);
             const images: string[] = Array.from(imageElements)
-                .map((element) =>
-                    (element as HTMLImageElement).getAttribute("src"),
-                )
+                .map((element) => (element as HTMLImageElement).getAttribute("src"))
                 .filter((ele) => ele != null);
 
             const totalContainer: Element | null = document.querySelector(
@@ -217,9 +201,7 @@ export async function scrapeDataFromDom(tabId: number): Promise<Order> {
             }
 
             let total: string = Array.from(totalContainer.querySelectorAll("p"))
-                .filter((text) =>
-                    text.innerText!.includes("sent to your bank account"),
-                )
+                .filter((text) => text.innerText!.includes("sent to your bank account"))
                 .map((text) => text.innerHTML)[0];
 
             const totalNum = Number(total.split(" ")[0].replace("US$", ""));
@@ -264,13 +246,8 @@ export function errorOrder(errorMsg: string) {
  * @param timeoutMs timeout to wait for the shipping label to load: default 5 sec
  * @returns shipping url
  */
-async function getShippingURL(
-    tabId: number,
-    timeoutMs: number = 500,
-): Promise<string> {
-    const existingTabs = new Set(
-        (await chrome.tabs.query({})).map((t) => t.id),
-    );
+async function getShippingURL(tabId: number, timeoutMs: number = 500): Promise<string> {
+    const existingTabs = new Set((await chrome.tabs.query({})).map((t) => t.id));
 
     const result = await chrome.scripting.executeScript({
         target: { tabId },

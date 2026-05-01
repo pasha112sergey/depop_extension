@@ -4,13 +4,7 @@
  */
 export default function ClearCacheButton() {
     return (
-        <button
-            id="clearCache"
-            onClick={() => {
-                chrome.storage.local.clear();
-                window.location.reload();
-            }}
-        >
+        <button id="clearCache" onClick={() => {}}>
             Clear Cache
         </button>
     );
