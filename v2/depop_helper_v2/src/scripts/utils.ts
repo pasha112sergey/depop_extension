@@ -5,15 +5,24 @@ import Order from "../models/Order";
  * @description
  * provides exports for utility functions like navigating the dom, setting dom elements and more
  */
+
+/**
+ * Logging function to report a bug
+ */
+export function alertError(msg: string): void {
+	window.alert(msg);
+	console.log(msg);
+}
+
 export enum Color {
-    SUCCESS = "#4aedae",
-    FAILURE = "#d13b3b",
+	SUCCESS = "#4aedae",
+	FAILURE = "#d13b3b",
 }
 
 const visitedUrls: string[] = [];
 
 export function clearVisitedUrls() {
-    visitedUrls.length = 0;
+	visitedUrls.length = 0;
 }
 
 /**
@@ -24,50 +33,54 @@ export function clearVisitedUrls() {
  * @throws {Error}
  */
 function setLinkContainerColor(link: string, color: Color): void {
-    const linkEle: HTMLAnchorElement | null = document.querySelector(
-        `a[href="${link}"]`,
-    ) as HTMLAnchorElement;
+	const linkEle: HTMLAnchorElement | null = document.querySelector(
+		`a[href="${link}"]`,
+	) as HTMLAnchorElement;
 
-    console.log(linkEle);
+	console.log(linkEle);
 
-    if (!linkEle) {
-        console.log("linkEle not found");
-        throw new Error("HTML element corresponding to link not found!");
-    } else {
-        linkEle.style!.backgroundColor = `${color}`;
-        console.log("linkEle style set!");
-    }
+	if (!linkEle) {
+		console.log("linkEle not found");
+		throw new Error("HTML element corresponding to link not found!");
+	} else {
+		linkEle.style!.backgroundColor = `${color}`;
+		console.log("linkEle style set!");
+	}
 }
 
 /**
  * @returns string[] Returns the links of each receipt element
  */
 export function getLinks(): string[] {
-    console.log("getting links...");
+	console.log("getting links...");
 
-    // collect receipt elements
-    let receipts = Array.from(document.getElementsByClassName("styles_receiptsListWrapper__bdK1V"));
+	// collect receipt elements
+	let receipts = Array.from(
+		document.getElementsByClassName("styles_receiptsListWrapper__bdK1V"),
+	);
 
-    // filter by valid receipt elements
-    const receiptElements = receipts.filter((r) => {
-        const val = Array.from(r.getElementsByTagName("p")).some((p) => {
-            return p.innerText.includes("Ship order");
-        });
-        return val;
-    });
+	// filter by valid receipt elements
+	const receiptElements = receipts.filter((r) => {
+		const val = Array.from(r.getElementsByTagName("p")).some((p) => {
+			return p.innerText.includes("Ship order");
+		});
+		return val;
+	});
 
-    console.log("receiptElemnts: ", receiptElements);
+	console.log("receiptElemnts: ", receiptElements);
 
-    // map receipts to their href attribute
-    const refs: string[] = receiptElements
-        .map((ele) => {
-            const aElement = ele.querySelector('[aria-label*="View receipt"]') as HTMLAnchorElement;
+	// map receipts to their href attribute
+	const refs: string[] = receiptElements
+		.map((ele) => {
+			const aElement = ele.querySelector(
+				'[aria-label*="View receipt"]',
+			) as HTMLAnchorElement;
 
-            return aElement ? aElement.href : null;
-        })
-        .filter((href) => href != null);
+			return aElement ? aElement.href : null;
+		})
+		.filter((href) => href != null);
 
-    return refs;
+	return refs;
 }
 
 /**
@@ -77,26 +90,30 @@ export function getLinks(): string[] {
  * @param timeoutMs max timeout, default = 10 sec
  * @returns
  */
-export async function waitForSelector(tabId: number, selector: string, timeoutMs: number = 10000) {
-    console.log(selector);
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-        // Ask the page if document.querySelector(selector) is non‐null
-        const [response] = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: (sel) => {
-                return document.querySelector(sel) !== null;
-            },
-            args: [selector],
-        });
-        if (response.result) {
-            return true;
-        }
-        // If not found yet, wait 100 ms and try again
-        await new Promise((r) => setTimeout(r, 100));
-    }
-    console.log("could not find selector: ", selector);
-    return false;
+export async function waitForSelector(
+	tabId: number,
+	selector: string,
+	timeoutMs: number = 10000,
+) {
+	console.log(selector);
+	const start = Date.now();
+	while (Date.now() - start < timeoutMs) {
+		// Ask the page if document.querySelector(selector) is non‐null
+		const [response] = await chrome.scripting.executeScript({
+			target: { tabId },
+			func: (sel) => {
+				return document.querySelector(sel) !== null;
+			},
+			args: [selector],
+		});
+		if (response.result) {
+			return true;
+		}
+		// If not found yet, wait 100 ms and try again
+		await new Promise((r) => setTimeout(r, 100));
+	}
+	console.log("could not find selector: ", selector);
+	return false;
 }
 
 /**
@@ -107,38 +124,40 @@ export async function waitForSelector(tabId: number, selector: string, timeoutMs
  * @returns void
  */
 export async function navigateToUrl(
-    tabId: number,
-    url: string,
-    timeoutMs: number = 15000,
+	tabId: number,
+	url: string,
+	timeoutMs: number = 15000,
 ): Promise<void> {
-    console.log("in navigate");
+	console.log("in navigate");
 
-    return new Promise((resolve, reject) => {
-        let timeoutHandle: number = 0;
+	return new Promise((resolve, reject) => {
+		let timeoutHandle: number = 0;
 
-        function onUpdatedListener(updatedTabId: number, changeInfo: any) {
-            if (updatedTabId !== tabId) return;
-            if (changeInfo.status == "complete") {
-                chrome.tabs.onUpdated.removeListener(onUpdatedListener);
-                clearTimeout(timeoutHandle);
-                resolve();
-            }
-        }
+		function onUpdatedListener(updatedTabId: number, changeInfo: any) {
+			if (updatedTabId !== tabId) return;
+			if (changeInfo.status == "complete") {
+				chrome.tabs.onUpdated.removeListener(onUpdatedListener);
+				clearTimeout(timeoutHandle);
+				resolve();
+			}
+		}
 
-        chrome.tabs.onUpdated.addListener(onUpdatedListener);
+		chrome.tabs.onUpdated.addListener(onUpdatedListener);
 
-        chrome.tabs.update(tabId, { url, active: false }).catch((error: any) => {
-            chrome.tabs.onUpdated.removeListener(onUpdatedListener);
-            clearTimeout(timeoutHandle);
-            reject(new Error(`tabs.update failed, ${error.message}`));
-        });
+		chrome.tabs
+			.update(tabId, { url, active: false })
+			.catch((error: any) => {
+				chrome.tabs.onUpdated.removeListener(onUpdatedListener);
+				clearTimeout(timeoutHandle);
+				reject(new Error(`tabs.update failed, ${error.message}`));
+			});
 
-        timeoutHandle = setTimeout(() => {
-            console.log("timeout!");
-            chrome.tabs.onUpdated.removeListener(onUpdatedListener);
-            reject(new Error("navigateToURL timed out"));
-        }, timeoutMs);
-    });
+		timeoutHandle = setTimeout(() => {
+			console.log("timeout!");
+			chrome.tabs.onUpdated.removeListener(onUpdatedListener);
+			reject(new Error("navigateToURL timed out"));
+		}, timeoutMs);
+	});
 }
 
 /**
@@ -147,88 +166,94 @@ export async function navigateToUrl(
  * @returns Order
  */
 export async function scrapeDataFromDom(tabId: number): Promise<Order> {
-    console.log("in scrapeDataFromDom");
-    const foundImage = await waitForSelector(tabId, "img", 10000);
-    console.log("found image!", foundImage);
+	console.log("in scrapeDataFromDom");
+	const foundImage = await waitForSelector(tabId, "img", 10000);
+	console.log("found image!", foundImage);
 
-    if (!foundImage) {
-        return errorOrder("no image found");
-    }
+	if (!foundImage) {
+		return errorOrder("no image found");
+	}
 
-    const foundGetShippingLabelBtn = await waitForSelector(
-        tabId,
-        'button[title*="shipping label" i]',
-        10000,
-    );
+	const foundGetShippingLabelBtn = await waitForSelector(
+		tabId,
+		'button[title*="shipping label" i]',
+		10000,
+	);
 
-    if (!foundGetShippingLabelBtn) {
-        return errorOrder("no shipping link!");
-    }
-    console.log("found shipping button!");
+	if (!foundGetShippingLabelBtn) {
+		return errorOrder("no shipping link!");
+	}
+	console.log("found shipping button!");
 
-    const [injectionResult] = await chrome.scripting.executeScript({
-        target: { tabId },
-        func: () => {
-            const imageElements: NodeListOf<Element> =
-                document.querySelectorAll("img.styles_image__nuVfa");
-            console.log(imageElements);
+	const [injectionResult] = await chrome.scripting.executeScript({
+		target: { tabId },
+		func: () => {
+			const imageElements: NodeListOf<Element> =
+				document.querySelectorAll("img.styles_image__nuVfa");
+			console.log(imageElements);
 
-            if (!imageElements) {
-                console.log("no images!");
-                return { error: "No img found in live DOM" };
-            }
-            const p_tags: NodeListOf<Element> = document.querySelectorAll(
-                "p._caption-lg-regular_r8lx6_16",
-            );
+			if (!imageElements) {
+				console.log("no images!");
+				return { error: "No img found in live DOM" };
+			}
+			const p_tags: NodeListOf<Element> = document.querySelectorAll(
+				"p._caption-lg-regular_r8lx6_16",
+			);
 
-            const user: string = Array.from(p_tags)
-                .filter((ele) => (ele as HTMLParagraphElement)?.innerText?.includes("@"))
-                .map((user) => {
-                    return (user as HTMLElement)?.innerText;
-                })[0];
+			const user: string = Array.from(p_tags)
+				.filter((ele) =>
+					(ele as HTMLParagraphElement)?.innerText?.includes("@"),
+				)
+				.map((user) => {
+					return (user as HTMLElement)?.innerText;
+				})[0];
 
-            console.log(user);
-            const images: string[] = Array.from(imageElements)
-                .map((element) => (element as HTMLImageElement).getAttribute("src"))
-                .filter((ele) => ele != null);
+			console.log(user);
+			const images: string[] = Array.from(imageElements)
+				.map((element) =>
+					(element as HTMLImageElement).getAttribute("src"),
+				)
+				.filter((ele) => ele != null);
 
-            const totalContainer: Element | null = document.querySelector(
-                ".styles_container__NdYm1",
-            );
+			const totalContainer: Element | null = document.querySelector(
+				".styles_container__NdYm1",
+			);
 
-            if (!totalContainer) {
-                return { error: "total container not found" };
-            }
+			if (!totalContainer) {
+				return { error: "total container not found" };
+			}
 
-            let total: string = Array.from(totalContainer.querySelectorAll("p"))
-                .filter((text) => text.innerText!.includes("sent to your bank account"))
-                .map((text) => text.innerHTML)[0];
+			let total: string = Array.from(totalContainer.querySelectorAll("p"))
+				.filter((text) =>
+					text.innerText!.includes("sent to your bank account"),
+				)
+				.map((text) => text.innerHTML)[0];
 
-            const totalNum = Number(total.split(" ")[0].replace("US$", ""));
-            console.log(totalNum);
-            return {
-                total: totalNum,
-                username: user,
-                images: images,
-                shippingLink: null,
-            };
-        },
-    });
+			const totalNum = Number(total.split(" ")[0].replace("US$", ""));
+			console.log(totalNum);
+			return {
+				total: totalNum,
+				username: user,
+				images: images,
+				shippingLink: null,
+			};
+		},
+	});
 
-    let orderData = injectionResult.result;
-    try {
-        const shippingLink: string = await getShippingURL(tabId, 8000);
-        return new Order(
-            "null",
-            orderData?.images ?? [],
-            orderData?.username ?? "error",
-            orderData?.total ?? -1,
-            shippingLink,
-            orderData?.error ?? "",
-        );
-    } catch (err: any) {
-        return errorOrder("no shipping link");
-    }
+	let orderData = injectionResult.result;
+	try {
+		const shippingLink: string = await getShippingURL(tabId, 8000);
+		return new Order(
+			"null",
+			orderData?.images ?? [],
+			orderData?.username ?? "error",
+			orderData?.total ?? -1,
+			shippingLink,
+			orderData?.error ?? "",
+		);
+	} catch (err: any) {
+		return errorOrder("no shipping link");
+	}
 }
 
 /**
@@ -237,7 +262,7 @@ export async function scrapeDataFromDom(tabId: number): Promise<Order> {
  * @returns Order instance
  */
 export function errorOrder(errorMsg: string) {
-    return new Order("error", ["error"], "error", -1, "error", errorMsg);
+	return new Order("error", ["error"], "error", -1, "error", errorMsg);
 }
 
 /**
@@ -246,53 +271,84 @@ export function errorOrder(errorMsg: string) {
  * @param timeoutMs timeout to wait for the shipping label to load: default 5 sec
  * @returns shipping url
  */
-async function getShippingURL(tabId: number, timeoutMs: number = 500): Promise<string> {
-    const existingTabs = new Set((await chrome.tabs.query({})).map((t) => t.id));
+async function getShippingURL(
+	tabId: number,
+	timeoutMs: number = 500,
+): Promise<string> {
+	const existingTabs = new Set(
+		(await chrome.tabs.query({})).map((t) => t.id),
+	);
 
-    const result = await chrome.scripting.executeScript({
-        target: { tabId },
-        func: () => {
-            try {
-                const btn = document.querySelector(
-                    'button[title*="shipping label" i]',
-                ) as HTMLButtonElement;
+	const result = await chrome.scripting.executeScript({
+		target: { tabId },
+		func: () => {
+			try {
+				const btn = document.querySelector(
+					'button[title*="shipping label" i]',
+				) as HTMLButtonElement;
 
-                if (!btn) throw new Error("Label button not found!");
-                btn.click();
-                return { success: true };
-            } catch (err: any) {
-                return { success: false, error: err.message };
-            }
-        },
-    });
+				if (!btn) throw new Error("Label button not found!");
+				btn.click();
+				return { success: true };
+			} catch (err: any) {
+				return { success: false, error: err.message };
+			}
+		},
+	});
 
-    if (!result[0].result?.success) {
-        throw new Error("No Shipping Label button found!");
-    }
+	if (!result[0].result?.success) {
+		throw new Error("No Shipping Label button found!");
+	}
 
-    const interval: number = 200;
-    const deadline: number = Date.now() + timeoutMs;
+	const interval: number = 200;
+	const deadline: number = Date.now() + timeoutMs;
 
-    while (Date.now() < deadline) {
-        const tabs: chrome.tabs.Tab[] = await chrome.tabs.query({});
+	while (Date.now() < deadline) {
+		const tabs: chrome.tabs.Tab[] = await chrome.tabs.query({});
 
-        const found: chrome.tabs.Tab | undefined = tabs.find(
-            (t) => !existingTabs.has(t.id) && t.url?.includes("goshippo"),
-        );
+		const found: chrome.tabs.Tab | undefined = tabs.find(
+			(t) => !existingTabs.has(t.id) && t.url?.includes("goshippo"),
+		);
 
-        if (found && found.url) {
-            chrome.tabs.remove(found.id!).catch((error) => {
-                throw new Error(`Failed to close tab! ${error}`);
-            });
-            return found.url;
-        }
-        await new Promise((r) => setTimeout(r, interval));
-    }
+		if (found && found.url) {
+			chrome.tabs.remove(found.id!).catch((error) => {
+				throw new Error(`Failed to close tab! ${error}`);
+			});
+			return found.url;
+		}
+		await new Promise((r) => setTimeout(r, interval));
+	}
 
-    const tabs = await chrome.tabs.query({});
-    const found = tabs.find((t) => t.url?.includes("depop"));
-    if (found) {
-        return "error";
-    }
-    throw new Error("timeout out waiting for goshippo tab");
+	const tabs = await chrome.tabs.query({});
+	const found = tabs.find((t) => t.url?.includes("depop"));
+	if (found) {
+		return "error";
+	}
+	throw new Error("timeout out waiting for goshippo tab");
+}
+
+/**
+ * polls selected objects
+ * @param {Map<string, Object>} singleton state
+ * @returns {Order[]} - array of Order objects that were selected
+ */
+export function pollSelectedObjects(orders: Map<string, Order>): Order[] {
+	const labels: Element[] = Array.from(
+		document.querySelectorAll('input[type="checkbox"]'),
+	);
+	console.log(labels);
+
+	const selectedLabelUrls = labels
+		.map((e: Element) => e as HTMLInputElement)
+		.filter((l) => {
+			console.log(l, l.checked);
+			return l.checked;
+		})
+		.map((l) => l.id);
+
+	const selectedOrders: Order[] = Array.from(orders.keys())
+		.filter((url) => selectedLabelUrls!.includes(url))
+		.map((url) => orders.get(url)!);
+
+	return selectedOrders;
 }
