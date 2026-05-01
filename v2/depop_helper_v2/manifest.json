@@ -28,7 +28,7 @@
         "https://deliver.goshippo.com/*"
     ],
     "oauth2": {
-        "client_id": "369149849398-a3fot2378lbf3usarbr6jd7sla21mkav.apps.googleusercontent.com",
+        "client_id": "274607292352-1mjhbo0e47a3d900imikd408ak0lgfhj.apps.googleusercontent.com",
         "scopes": [
             "https://www.googleapis.com/auth/gmail.send",
             "https://www.googleapis.com/auth/spreadsheets"

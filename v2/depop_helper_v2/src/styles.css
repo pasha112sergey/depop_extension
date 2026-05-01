@@ -1,126 +1,156 @@
 body {
-    width: 400px;
-    height: 400px;
-    padding-top: 0;
-    margin-top: 5%;
-    display: flex;
-    flex-direction: column;
+	width: 400px;
+	padding-top: 0;
+	margin-top: 5%;
+	display: flex;
+	flex-direction: column;
+	background-color: rgb(5, 62, 39);
 }
 
 h2 {
-    text-align: left;
-    padding-bottom: 0;
-    margin-bottom: 0;
+	text-align: left;
+	padding-bottom: 0;
+	margin-bottom: 0;
 }
 
 h3 {
-    text-align: left;
-    padding-top: 0;
-    margin-top: 0;
+	text-align: left;
+	padding-top: 0;
+	margin-top: 0;
 }
 
 div#root {
-    margin-right: 5%;
-    margin-left: 5%;
-    margin-top: 2.5%;
-    margin-bottom: 2.5%;
-    padding: 0;
+	margin-right: 5%;
+	margin-left: 5%;
+	margin-top: 2.5%;
+	margin-bottom: 2.5%;
+	padding: 0;
 }
 table {
-    border-color: black;
-    border-style: solid;
-    border-width: 3px;
+	border-color: black;
+	border-style: solid;
+	border-width: 3px;
+	border-collapse: collapse;
+	border-color: black;
+	padding: 0;
+	margin-top: 0px;
+	background-color: white;
+	width: 350px;
+	height: 100%;
+	margin-bottom: 15px;
 }
 
 #orderTable {
-    padding: 0;
-    border-collapse: collapse;
-    border-color: black;
-    border-style: solid;
-    border-width: 3px;
-    margin-bottom: 15px;
-    margin-top: 0px;
-    background-color: white;
-    width: 350px;
-    height: 100%;
+	margin-bottom: 15px;
 }
 
 .imageContainer {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    padding-top: 2px;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	align-items: center;
+	padding-top: 2px;
 }
 
 td {
-    color: black;
-    width: 100%;
-    height: 100%;
-    padding-top: 3px;
-    padding-bottom: 3px;
-    border: 1px solid black;
-    vertical-align: top;
+	color: black;
+	width: 100%;
+	height: 100%;
+	padding-top: 3px;
+	padding-bottom: 3px;
+	/* border: 1px solid black; */
+	vertical-align: top;
 }
 
 img {
-    width: 35%;
-    height: 35%;
+	width: 35%;
+	height: 35%;
 }
 
 .dropDown {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding: 0;
-    margin: 0;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	padding: 5px;
+	margin: 0;
 }
 
 .dropDown > details {
-    justify-content: flex-start;
-    height: 100%;
+	justify-content: flex-start;
+	height: 100%;
 }
 
 .buttons {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
 }
 
 .username {
-    width: 25%;
-    padding: 0;
-    cursor: pointer;
+	width: 25%;
+	padding: 0;
+	cursor: pointer;
+	border: 1px, solid, black;
 }
 
 .username-label {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    cursor: pointer;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+	cursor: pointer;
 }
 
 .username input {
-    display: none;
+	display: none;
 }
 .username-label:has(input:checked) {
-    background-color: lightblue;
-}
-
-.imageContainer input {
-    width: 100%;
-    box-sizing: border-box;
+	background-color: lightblue;
 }
 
 .tableButtons {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
 }
 .tableButtons > button {
-    width: 20%;
-    height: auto;
+	width: 20%;
+	height: auto;
+	border: 1px, solid, black;
+}
+
+#deleteSelected {
+	background-color: #de4d4d;
+	color: black;
+}
+
+#clearCache {
+	background-color: #de0f0f;
+	color: black;
+}
+
+#selectAll {
+	background-color: #bceee4;
+	color: black;
+}
+#collapseAll {
+	color: black;
+	background-color: #7fc4b7;
+}
+
+#getOrders {
+	background-color: #8ffe18;
+	color: black;
+}
+
+button:hover {
+	color: black;
+	background-color: white !important;
+	border-color: black;
+}
+
+.orderRow {
+	border: 1px, solid, black;
 }
