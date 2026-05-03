@@ -3,7 +3,11 @@ import { useEffect, useState } from "react";
 import { getAuthToken } from "../scripts/googleApi";
 import sendEmails from "../scripts/sendEmails";
 import updateSheet from "../scripts/updateSheet";
-type Props = { orders: Map<string, Order>; setOrders: Function };
+type Props = {
+	orders: Map<string, Order>;
+	setOrders: Function;
+	selected: Set<Order>;
+};
 
 /**
  * this component contains the code for buttons responsible for calling Gmail API
@@ -21,11 +25,12 @@ type Props = { orders: Map<string, Order>; setOrders: Function };
  * @param param0
  * @returns React component
  */
-export default function GappsButtons({ orders, setOrders }: Props) {
+export default function GappsButtons({ orders, setOrders, selected }: Props) {
 	void orders;
 	void setOrders;
 
 	const [token, setToken] = useState<string>();
+
 	useEffect(() => {
 		(async () => {
 			const t = await getAuthToken();
@@ -33,21 +38,27 @@ export default function GappsButtons({ orders, setOrders }: Props) {
 		})();
 	});
 
+	useEffect(() => {
+		console.log("rerendering bc of selected");
+	}, [selected.size]);
+
 	return (
 		<div className="gappsButtons">
 			<button
 				id="sendEmails"
 				onClick={() => {
 					return (async () => {
-						return sendEmails(orders, token);
+						return sendEmails(orders, token, setOrders);
 					})();
 				}}>
-				Send Emails
+				{`Send ${selected.size} emails`}
 			</button>
 			<button
 				id="updateSheet"
-				onClick={() => (async () => updateSheet(orders, token))()}>
-				Update Spreadsheet
+				onClick={() =>
+					(async () => updateSheet(orders, token, setOrders))()
+				}>
+				{`Log ${selected.size} orders in sheet`}
 			</button>
 		</div>
 	);

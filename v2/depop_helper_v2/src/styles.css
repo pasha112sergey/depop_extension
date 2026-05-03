@@ -154,3 +154,7 @@ button:hover {
 .orderRow {
 	border: 1px, solid, black;
 }
+
+tr {
+	background-color: white;
+}

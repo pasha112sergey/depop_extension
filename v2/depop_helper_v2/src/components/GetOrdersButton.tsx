@@ -46,6 +46,8 @@ function getOrders(setOrders: Function) {
 					o._total,
 					o._shippingLink,
 					o._error,
+					o._sent,
+					o._accounted,
 				),
 		);
 

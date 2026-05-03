@@ -37,7 +37,7 @@ export default function EmailTemplate({ order }: Prop) {
 											count++,
 											img,
 											order.url,
-										) || "no note!"}
+										) || ""}
 									</span>
 								</td>
 							</tr>

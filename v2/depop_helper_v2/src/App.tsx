@@ -8,6 +8,7 @@ function App() {
 	const [orders, setOrders] = useState<Map<string, Order>>(
 		new Map<string, Order>(),
 	);
+	const [selected, setSelected] = useState<Set<Order>>(new Set<Order>());
 
 	// pull last results on each render
 	useEffect(() => {
@@ -22,6 +23,8 @@ function App() {
 					o._total,
 					o._shippingLink,
 					o._error,
+					o._sent,
+					o.accounted,
 				);
 				os.set(order.url, order);
 			}
@@ -36,10 +39,15 @@ function App() {
 				<h3 id="quantity">
 					Quantity: {Array.from(orders.values()).length}
 				</h3>
-				<OrderTable orders={orders} setOrders={setOrders}></OrderTable>
+				<OrderTable
+					orders={orders}
+					setOrders={setOrders}
+					selected={selected}
+					setSelected={setSelected}></OrderTable>
 				<div className="buttons">
 					<GappsButtons
 						orders={orders}
+						selected={selected}
 						setOrders={setOrders}></GappsButtons>
 				</div>
 			</div>

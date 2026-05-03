@@ -1,4 +1,4 @@
-import { alertError, pollSelectedObjects } from "./utils";
+import { alertError, pollSelectedObjects, sleep } from "./utils";
 import Order from "../models/Order";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildRawEmail, callGmailSend } from "./googleApi";
@@ -18,6 +18,7 @@ const EMAIL_DESTINATION: string = "pasha112sergey@gmail.com";
 export default async function sendEmails(
 	orders: Map<string, Order>,
 	token: string | undefined,
+	setOrders: Function,
 ): Promise<void> {
 	const selected: Order[] = pollSelectedObjects(orders);
 	if (selected.length == 0) {
@@ -32,8 +33,15 @@ export default async function sendEmails(
 
 	// map of url: html body
 	const htmlEmailBodies: Map<string, string> = createEmailHtml(selected);
+
+	let count: number = 0;
+
 	for (const [url, html] of htmlEmailBodies) {
-		sendEmail(html, orders.get(url), token)
+		if (count > 0 && count % 10 == 0) {
+			await sleep(500);
+		}
+
+		sendEmail(html, orders.get(url), token, orders, setOrders)
 			.then(() => {
 				console.log(`order for ${orders.get(url)} sent successfully!`);
 			})
@@ -43,7 +51,12 @@ export default async function sendEmails(
 						err.message,
 				);
 			});
+		count++;
 	}
+	setOrders(new Map(orders));
+	chrome.storage.local.set({
+		lastResults: Array.from(orders.values()),
+	});
 }
 
 /**
@@ -58,6 +71,8 @@ async function sendEmail(
 	html: string,
 	order: Order | undefined,
 	token: string,
+	orders: Map<string, Order>,
+	setOrders: Function,
 ): Promise<boolean> {
 	if (!order) {
 		alertError("Request to send email to null order!");
@@ -69,12 +84,13 @@ async function sendEmail(
 	const raw = buildRawEmail(EMAIL_DESTINATION, subject, html);
 	try {
 		await callGmailSend(raw, token);
+		order.sent = true;
+		setOrders(new Map(orders));
 		return true;
 	} catch (err: any) {
 		throw new Error(
 			`error: ${err.message} arose when trying to send email for ${order.username}`,
 		);
-		return false;
 	}
 }
 

@@ -10,13 +10,46 @@ import Order from "../models/Order";
  * Logging function to report a bug
  */
 export function alertError(msg: string): void {
-	window.alert(msg);
-	console.log(msg);
+	const tabId = getTabId();
+	tabId
+		.then((tabId) => {
+			chrome.scripting.executeScript({
+				target: { tabId },
+				func: (msg: string) => {
+					window.alert(msg);
+				},
+				args: [msg],
+			});
+		})
+		.catch((error: Error) => {
+			console.log("Error!\n");
+			window.alert(error.message);
+		});
+	console.log("alertError: ", msg);
+}
+
+export async function getTabId(): Promise<number> {
+	const [tab] = await chrome.tabs.query({
+		active: true,
+		lastFocusedWindow: true,
+	});
+
+	if (!tab?.id) {
+		throw new Error("No tab id!");
+	}
+
+	if (!tab.url?.startsWith("https://")) {
+		throw new Error("No valid tabId!");
+	}
+
+	return tab.id;
 }
 
 export enum Color {
 	SUCCESS = "#4aedae",
 	FAILURE = "#d13b3b",
+	SENT = "#ee8f1a",
+	LOGGED = "#FFFFFF",
 }
 
 const visitedUrls: string[] = [];
@@ -250,6 +283,8 @@ export async function scrapeDataFromDom(tabId: number): Promise<Order> {
 			orderData?.total ?? -1,
 			shippingLink,
 			orderData?.error ?? "",
+			false,
+			false,
 		);
 	} catch (err: any) {
 		return errorOrder("no shipping link");
@@ -351,4 +386,9 @@ export function pollSelectedObjects(orders: Map<string, Order>): Order[] {
 		.map((url) => orders.get(url)!);
 
 	return selectedOrders;
+}
+
+/** sleeping function to stagger api calls */
+export async function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
