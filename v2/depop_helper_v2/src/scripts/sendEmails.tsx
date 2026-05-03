@@ -4,8 +4,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { buildRawEmail, callGmailSend } from "./googleApi";
 import EmailTemplate from "../components/EmailTemplate";
 
-const EMAIL_DESTINATION: string = "pasha112sergey@gmail.com";
-
 /**
  * This function is responsible for email dispatch:
  * Steps:
@@ -19,6 +17,7 @@ export default async function sendEmails(
 	orders: Map<string, Order>,
 	token: string | undefined,
 	setOrders: Function,
+	destination: string,
 ): Promise<void> {
 	const selected: Order[] = pollSelectedObjects(orders);
 	if (selected.length == 0) {
@@ -41,22 +40,16 @@ export default async function sendEmails(
 			await sleep(500);
 		}
 
-		sendEmail(html, orders.get(url), token, orders, setOrders)
-			.then(() => {
-				console.log(`order for ${orders.get(url)} sent successfully!`);
-			})
-			.catch((err: any) => {
-				alertError(
-					`error for order for ${orders.get(url)?.username}: ` +
-						err.message,
-				);
-			});
+		try {
+			await sendEmail(html, orders.get(url), token, orders, setOrders, destination);
+			console.log(`order for ${orders.get(url)?.username} sent successfully!`);
+		} catch (err: any) {
+			alertError(
+				`error for order for ${orders.get(url)?.username}: ` + err.message,
+			);
+		}
 		count++;
 	}
-	setOrders(new Map(orders));
-	chrome.storage.local.set({
-		lastResults: Array.from(orders.values()),
-	});
 }
 
 /**
@@ -73,6 +66,7 @@ async function sendEmail(
 	token: string,
 	orders: Map<string, Order>,
 	setOrders: Function,
+	destination: string,
 ): Promise<boolean> {
 	if (!order) {
 		alertError("Request to send email to null order!");
@@ -81,11 +75,15 @@ async function sendEmail(
 
 	const subject = `depop-${order.username}`;
 
-	const raw = buildRawEmail(EMAIL_DESTINATION, subject, html);
+	const raw = buildRawEmail(destination, subject, html);
 	try {
 		await callGmailSend(raw, token);
 		order.sent = true;
-		setOrders(new Map(orders));
+		const updatedOrders = new Map(orders);
+		setOrders(updatedOrders);
+		chrome.storage.local.set({
+			lastResults: Array.from(updatedOrders.values()),
+		});
 		return true;
 	} catch (err: any) {
 		throw new Error(

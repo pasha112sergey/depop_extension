@@ -81,7 +81,11 @@ export default async function updateSheet(
 					);
 				}
 				order.accounted = true;
-				setOrders(new Map(orders));
+				const updatedOrders = new Map(orders);
+				setOrders(updatedOrders);
+				chrome.storage.local.set({
+					lastResults: Array.from(updatedOrders.values()),
+				});
 			} catch (err: any) {
 				alertError(`Failed to update sheet: ${err.message}`);
 			}

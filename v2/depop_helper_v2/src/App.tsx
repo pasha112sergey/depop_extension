@@ -4,11 +4,14 @@ import Order from "./models/Order";
 import OrderTable from "./components/OrderTable";
 import GappsButtons from "./components/GappsButtons";
 
+const DEFAULT_EMAIL: string = "safronov1112@gmail.com";
+
 function App() {
 	const [orders, setOrders] = useState<Map<string, Order>>(
 		new Map<string, Order>(),
 	);
 	const [selected, setSelected] = useState<Set<Order>>(new Set<Order>());
+	const [email, setEmail] = useState<string>(DEFAULT_EMAIL);
 
 	// pull last results on each render
 	useEffect(() => {
@@ -24,7 +27,7 @@ function App() {
 					o._shippingLink,
 					o._error,
 					o._sent,
-					o.accounted,
+					o._accounted,
 				);
 				os.set(order.url, order);
 			}
@@ -35,6 +38,13 @@ function App() {
 	return (
 		<>
 			<div className="main">
+				<h3>Input email: currently is: [{email}]</h3>
+				<input
+					type="text"
+					placeholder="email"
+					onChange={(e) => {
+						setEmail(e.target.value);
+					}}></input>
 				<h2 className="main-heading">Select usernames to ship</h2>
 				<h3 id="quantity">
 					Quantity: {Array.from(orders.values()).length}
@@ -48,7 +58,8 @@ function App() {
 					<GappsButtons
 						orders={orders}
 						selected={selected}
-						setOrders={setOrders}></GappsButtons>
+						setOrders={setOrders}
+						emailDestination={email}></GappsButtons>
 				</div>
 			</div>
 		</>

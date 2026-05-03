@@ -173,6 +173,7 @@ function Row({ order, setSelected, selected }: RowProp) {
 			setColor(Color.SUCCESS);
 		}
 	}, [order.sent, order.accounted]);
+
 	return (
 		<tr className="orderRow" style={{ backgroundColor: color }}>
 			<td className="username">

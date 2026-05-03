@@ -49,7 +49,7 @@ export enum Color {
 	SUCCESS = "#4aedae",
 	FAILURE = "#d13b3b",
 	SENT = "#ee8f1a",
-	LOGGED = "#FFFFFF",
+	LOGGED = "#c33f2d",
 }
 
 const visitedUrls: string[] = [];
