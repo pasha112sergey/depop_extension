@@ -52,33 +52,13 @@ export enum Color {
 	LOGGED = "#c33f2d",
 }
 
+const ORDER_IMAGE_SELECTOR = "img.styles_image__nuVfa";
+const SHIPPING_BUTTON_SELECTOR = ".styles_downloadLabelButton--label__3i_n0";
+
 const visitedUrls: string[] = [];
 
 export function clearVisitedUrls() {
 	visitedUrls.length = 0;
-}
-
-/**
- * Sets the link element's background color
- * @param {string} link : string of the link
- * @param {Color} color : color to set the background color to
- * @returns {void}
- * @throws {Error}
- */
-function setLinkContainerColor(link: string, color: Color): void {
-	const linkEle: HTMLAnchorElement | null = document.querySelector(
-		`a[href="${link}"]`,
-	) as HTMLAnchorElement;
-
-	console.log(linkEle);
-
-	if (!linkEle) {
-		console.log("linkEle not found");
-		throw new Error("HTML element corresponding to link not found!");
-	} else {
-		linkEle.style!.backgroundColor = `${color}`;
-		console.log("linkEle style set!");
-	}
 }
 
 /**
@@ -159,7 +139,7 @@ export async function waitForSelector(
 export async function navigateToUrl(
 	tabId: number,
 	url: string,
-	timeoutMs: number = 15000,
+	timeoutMs: number = 30000,
 ): Promise<void> {
 	console.log("in navigate");
 
@@ -199,7 +179,7 @@ export async function navigateToUrl(
  * @returns Order
  */
 export async function scrapeDataFromDom(tabId: number): Promise<Order> {
-	console.log("in scrapeDataFromDom");
+	console.log("in scrapeDataFromDom: tabid: ", tabId);
 	const foundImage = await waitForSelector(tabId, "img", 10000);
 	console.log("found image!", foundImage);
 
@@ -209,14 +189,13 @@ export async function scrapeDataFromDom(tabId: number): Promise<Order> {
 
 	const foundGetShippingLabelBtn = await waitForSelector(
 		tabId,
-		'button[title*="shipping label" i]',
+		SHIPPING_BUTTON_SELECTOR,
 		10000,
 	);
 
 	if (!foundGetShippingLabelBtn) {
 		return errorOrder("no shipping link!");
 	}
-	console.log("found shipping button!");
 
 	const [injectionResult] = await chrome.scripting.executeScript({
 		target: { tabId },
@@ -276,6 +255,9 @@ export async function scrapeDataFromDom(tabId: number): Promise<Order> {
 	let orderData = injectionResult.result;
 	try {
 		const shippingLink: string = await getShippingURL(tabId, 8000);
+		console.log(
+			`order for : ${orderData!.username} has link: ${shippingLink}`,
+		);
 		return new Order(
 			"null",
 			orderData?.images ?? [],
@@ -308,57 +290,110 @@ export function errorOrder(errorMsg: string) {
  */
 async function getShippingURL(
 	tabId: number,
-	timeoutMs: number = 500,
+	timeoutMs: number = 12000,
 ): Promise<string> {
-	const existingTabs = new Set(
-		(await chrome.tabs.query({})).map((t) => t.id),
-	);
+	const existingTabs = new Map<number, string | undefined>();
+	for (const tab of await chrome.tabs.query({})) {
+		if (tab.id !== undefined) {
+			existingTabs.set(tab.id, tab.url);
+		}
+	}
+	console.log("selector: ", SHIPPING_BUTTON_SELECTOR);
 
 	const result = await chrome.scripting.executeScript({
 		target: { tabId },
-		func: () => {
+		func: (selector: string) => {
 			try {
-				const btn = document.querySelector(
-					'button[title*="shipping label" i]',
-				) as HTMLButtonElement;
+				const buttons = Array.from(document.querySelectorAll("button"));
 
-				if (!btn) throw new Error("Label button not found!");
+				const btn = buttons.find((button) =>
+					(button as HTMLButtonElement).innerText
+						.trim()
+						.toLowerCase()
+						.includes("get shipping label"),
+				) as HTMLButtonElement | undefined;
+
+				if (!btn) {
+					throw new Error("did not find button!");
+				}
 				btn.click();
+
 				return { success: true };
 			} catch (err: any) {
+				window.alert(err.message);
 				return { success: false, error: err.message };
 			}
 		},
+		args: [SHIPPING_BUTTON_SELECTOR],
 	});
 
 	if (!result[0].result?.success) {
 		throw new Error("No Shipping Label button found!");
 	}
 
-	const interval: number = 200;
+	console.log("[getShippingURL] clicked shipping button:", result[0].result);
+
+	const interval: number = 250;
 	const deadline: number = Date.now() + timeoutMs;
+	let pollCount = 0;
+
+	await new Promise((r) => setTimeout(r, interval));
 
 	while (Date.now() < deadline) {
 		const tabs: chrome.tabs.Tab[] = await chrome.tabs.query({});
+		pollCount++;
 
-		const found: chrome.tabs.Tab | undefined = tabs.find(
-			(t) => !existingTabs.has(t.id) && t.url?.includes("goshippo"),
-		);
+		const newTabs = tabs.filter((tab) => {
+			if (tab.id === undefined) {
+				return false;
+			}
+
+			return !existingTabs.has(tab.id);
+		});
+		if (newTabs.length > 0) {
+			console.log(
+				`[getShippingURL] poll #${pollCount} — new tabs:`,
+				newTabs.map((t) => ({
+					id: t.id,
+					url: t.url,
+					status: t.status,
+				})),
+			);
+		}
+
+		const found: chrome.tabs.Tab | undefined = tabs.find((tab) => {
+			if (tab.id === undefined) {
+				return false;
+			}
+
+			const currentUrl = tab.url ?? tab.pendingUrl;
+			if (!currentUrl?.includes("goshippo")) {
+				return false;
+			}
+
+			const previousUrl = existingTabs.get(tab.id);
+			const isNewTab = !existingTabs.has(tab.id);
+			const urlChangedAfterClick = previousUrl !== currentUrl;
+
+			return (
+				(isNewTab || urlChangedAfterClick) && tab.status === "complete"
+			);
+		});
 
 		if (found && found.url) {
-			chrome.tabs.remove(found.id!).catch((error) => {
-				throw new Error(`Failed to close tab! ${error}`);
+			console.log(
+				`[getShippingURL] found goshippo tab — id: ${found.id}, status: ${found.status}, url: ${found.url}`,
+			);
+
+			await chrome.tabs.remove(found.id!).catch((error) => {
+				console.warn(`Failed to close goshippo tab: ${error}`);
 			});
+
 			return found.url;
 		}
-		await new Promise((r) => setTimeout(r, interval));
+		await sleep(interval);
 	}
 
-	const tabs = await chrome.tabs.query({});
-	const found = tabs.find((t) => t.url?.includes("depop"));
-	if (found) {
-		return "error";
-	}
 	throw new Error("timeout out waiting for goshippo tab");
 }
 

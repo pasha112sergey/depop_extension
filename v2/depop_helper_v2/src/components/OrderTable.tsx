@@ -20,7 +20,7 @@ export default function OrderTable({
 	const [collapsed, setCollapsed] = useState(false);
 	const [allSelected, setAllSelected] = useState(false);
 
-	for (const [u, o] of orders) {
+	for (const [, o] of orders) {
 		if (o.sent) {
 			console.log(o.username, " sent!");
 		}
@@ -84,8 +84,8 @@ export default function OrderTable({
  */
 function clearCache(setOrders: Function, setSelected: Function): void {
 	chrome.storage.local.clear();
-	setOrders([]);
-	setSelected([]);
+	setOrders(new Map<string, Order>());
+	setSelected(new Set<Order>());
 }
 
 /**

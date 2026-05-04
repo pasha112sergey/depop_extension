@@ -1,37 +1,38 @@
 {
-    "name": "Depop Extension",
-    "description": "Depop helper extension to automate the sending of order emails and shipping labels to my dad.",
-    "version": "2.0",
-    "manifest_version": 3,
-    "action": {
-        "default_popup": "index.html",
-        "default_icon": "src/depop_icon.png"
-    },
-    "background": {
-        "service_worker": "src/scripts/backend.ts",
-        "type": "module"
-    },
-    "permissions": [
-        "cookies",
-        "identity",
-        "activeTab",
-        "scripting",
-        "downloads",
-        "storage",
-        "webRequest",
-        "tabs"
-    ],
-    "host_permissions": [
-        "https://depop.com/*",
-        "https://www.depop.com/*",
-        "https://webapi.depop.com/*",
-        "https://deliver.goshippo.com/*"
-    ],
-    "oauth2": {
-        "client_id": "274607292352-1mjhbo0e47a3d900imikd408ak0lgfhj.apps.googleusercontent.com",
-        "scopes": [
-            "https://www.googleapis.com/auth/gmail.send",
-            "https://www.googleapis.com/auth/spreadsheets"
-        ]
-    }
+	"name": "Depop Extension",
+	"description": "Depop helper extension to automate the sending of order emails and shipping labels to my dad.",
+	"version": "2.0",
+	"manifest_version": 3,
+	"action": {
+		"default_popup": "index.html",
+		"default_icon": "src/depop_icon.png"
+	},
+	"background": {
+		"service_worker": "src/scripts/backend.ts",
+		"type": "module"
+	},
+	"permissions": [
+		"cookies",
+		"identity",
+		"activeTab",
+		"scripting",
+		"downloads",
+		"storage",
+		"webRequest",
+		"tabs",
+		"browsingData"
+	],
+	"host_permissions": [
+		"https://depop.com/*",
+		"https://www.depop.com/*",
+		"https://webapi.depop.com/*",
+		"https://deliver.goshippo.com/*"
+	],
+	"oauth2": {
+		"client_id": "274607292352-1mjhbo0e47a3d900imikd408ak0lgfhj.apps.googleusercontent.com",
+		"scopes": [
+			"https://www.googleapis.com/auth/gmail.send",
+			"https://www.googleapis.com/auth/spreadsheets"
+		]
+	}
 }
